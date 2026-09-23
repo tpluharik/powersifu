@@ -26,15 +26,19 @@ PowerSifu targets Ubuntu and Debian desktops using
 
 ## Install
 
-Download or build `powersifu_0.2.0_all.deb`, then install it with:
+Download or build `powersifu_0.2.3_all.deb`, then install it with:
 
 ```bash
-sudo apt install ./dist/powersifu_0.2.0_all.deb
+sudo apt install ./dist/powersifu_0.2.3_all.deb
 ```
 
 Launch **PowerSifu** from the application menu. The package also starts it in the tray on future
 logins. On Ubuntu, tray support is available through the default AppIndicator integration. Other
 GNOME distributions may need the AppIndicator extension recommended by the package.
+
+PowerSifu is a standalone desktop application: launching it from the application menu never opens
+a terminal, and running `powersifu` from a shell detaches the app from that shell. For diagnostics,
+`powersifu --foreground` keeps it attached so startup errors remain visible.
 
 To uninstall:
 
@@ -62,8 +66,9 @@ control startup. **Apply current source rule now** immediately evaluates the sav
 
 Open the **Brightness** tab, enable profile brightness, and choose a percentage for Power
 Saver, Balanced, and Performance. The setting is applied when a profile activates and when
-you save the configuration. PowerSifu uses `brightnessctl`; the feature remains off by
-default and external monitors may require their own controls.
+you save the configuration. PowerSifu first uses `brightnessctl`, then safely falls back to
+GNOME's per-user display service when direct backlight access is restricted. The feature remains
+off by default, and external monitors may require their own controls.
 
 ### Application rules
 
@@ -101,8 +106,9 @@ ${XDG_CONFIG_HOME:-~/.config}/powersifu/config.json
 ```
 
 PowerSifu checks power state every five seconds. It delegates profile changes to the installed
-`power-profiles-daemon` and optional display changes to `brightnessctl`; it does not install a
-privileged daemon or custom authorization policy. The About-page update checker contacts only
+`power-profiles-daemon` and applies optional display changes through the desktop session or
+`brightnessctl`; it does not install a privileged daemon or custom authorization policy. The
+About-page update checker contacts only
 the official GitHub Releases API, and only after **Check for updates** is clicked.
 
 ## Build from source
@@ -134,9 +140,9 @@ one by default; other GNOME installations may need `gnome-shell-extension-appind
 **A profile does not change:** run `powerprofilesctl list` and confirm that the requested profile
 is available. Your distribution may display an authorization prompt for profile changes.
 
-**Brightness does not change:** install `brightnessctl`, run `brightnessctl info`, and confirm
-your user session is allowed to control the detected backlight. Disable brightness automation
-for systems or external displays that do not expose a supported backlight.
+**Brightness does not change:** PowerSifu shows the underlying error after saving. On GNOME it
+uses the session display service when direct backlight access is denied. Other desktops should
+provide a working `brightnessctl` setup. External displays may require their own controls.
 
 **The update check fails:** confirm that GitHub is reachable. PowerSifu does not check in the
 background; retry from the About tab when network access is available.

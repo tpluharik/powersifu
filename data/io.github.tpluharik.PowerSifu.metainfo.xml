@@ -26,6 +26,21 @@
     <binary>powersifu</binary>
   </provides>
   <releases>
+    <release version="0.2.3" date="2026-09-23">
+      <description>
+        <p>Add a permission-safe GNOME fallback for display brightness changes.</p>
+      </description>
+    </release>
+    <release version="0.2.2" date="2026-09-23">
+      <description>
+        <p>Fix a settings-window startup crash caused by a GTK widget name collision.</p>
+      </description>
+    </release>
+    <release version="0.2.1" date="2026-09-23">
+      <description>
+        <p>Launch PowerSifu as a standalone desktop process without keeping a terminal attached.</p>
+      </description>
+    </release>
     <release version="0.2.0" date="2026-09-23">
       <description>
         <p>Adds profile-aware display brightness and an opt-in update checker.</p>

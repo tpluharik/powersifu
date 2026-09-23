@@ -251,7 +251,7 @@ class SettingsWindow(Gtk.ApplicationWindow):
             self.brightness_values[profile] = value
 
         hint = _label(
-            "PowerSifu uses brightnessctl and never writes directly to privileged system files. "
+            "PowerSifu uses the desktop session or brightnessctl and never asks for root access. "
             "External monitors may require their own display controls."
         )
         hint.get_style_context().add_class("dim-label")
@@ -353,10 +353,10 @@ class SettingsWindow(Gtk.ApplicationWindow):
         safety.set_xalign(0.5)
         page.pack_start(safety, False, False, 12)
 
-        self.update_status = _label("Updates are checked only when you request it.")
-        self.update_status.set_justify(Gtk.Justification.CENTER)
-        self.update_status.set_xalign(0.5)
-        page.pack_start(self.update_status, False, False, 0)
+        self.update_check_status = _label("Updates are checked only when you request it.")
+        self.update_check_status.set_justify(Gtk.Justification.CENTER)
+        self.update_check_status.set_xalign(0.5)
+        page.pack_start(self.update_check_status, False, False, 0)
         update_buttons = Gtk.Box(spacing=8)
         update_buttons.set_halign(Gtk.Align.CENTER)
         self.update_check_button = Gtk.Button.new_with_label("Check for updates")
@@ -443,6 +443,13 @@ class SettingsWindow(Gtk.ApplicationWindow):
         except (OSError, ValueError) as error:
             self._message("Could not save settings", str(error), Gtk.MessageType.ERROR)
             return
+        if self.engine.last_brightness_error:
+            self._message(
+                "Settings saved, but brightness was not changed",
+                self.engine.last_brightness_error,
+                Gtk.MessageType.WARNING,
+            )
+            return
         self._message("Settings saved", "PowerSifu is using the updated rules.", Gtk.MessageType.INFO)
 
     def _brightness_enabled_toggled(self, button: Gtk.CheckButton) -> None:
@@ -454,7 +461,7 @@ class SettingsWindow(Gtk.ApplicationWindow):
         self._update_uri = None
         self.update_check_button.set_sensitive(False)
         self.update_open_button.hide()
-        self.update_status.set_text("Checking the official GitHub release…")
+        self.update_check_status.set_text("Checking the official GitHub release…")
         worker = threading.Thread(target=self._check_for_updates_worker, daemon=True)
         worker.start()
 
@@ -471,16 +478,16 @@ class SettingsWindow(Gtk.ApplicationWindow):
     ) -> bool:
         self.update_check_button.set_sensitive(True)
         if error is not None:
-            self.update_status.set_text(error)
+            self.update_check_status.set_text(error)
             return GLib.SOURCE_REMOVE
         if info is None:
-            self.update_status.set_text("The update check returned no result.")
+            self.update_check_status.set_text("The update check returned no result.")
             return GLib.SOURCE_REMOVE
         if not info.available:
-            self.update_status.set_text(f"PowerSifu {__version__} is up to date.")
+            self.update_check_status.set_text(f"PowerSifu {__version__} is up to date.")
             return GLib.SOURCE_REMOVE
 
-        self.update_status.set_text(
+        self.update_check_status.set_text(
             f"PowerSifu {info.latest_version} is available. Review it before installing."
         )
         self._update_uri = info.download_url or info.release_url

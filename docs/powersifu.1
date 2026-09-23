@@ -1,9 +1,12 @@
-.TH POWERSIFU 1 "23 September 2026" "PowerSifu 0.2.0" "User Commands"
+.TH POWERSIFU 1 "23 September 2026" "PowerSifu 0.2.3" "User Commands"
 .SH NAME
 powersifu \- automate Linux desktop power profiles
 .SH SYNOPSIS
 .B powersifu
 .RI [ --background ]
+.br
+.B powersifu
+.RI [ --foreground ]
 .br
 .B powersifu
 .RI [ --version ]
@@ -17,10 +20,15 @@ configured same-user applications when a selected profile becomes active.
 The settings window provides General, Brightness, Application Rules, Schedules, and About pages.
 Closing the window leaves the tray process running. Use Quit in the tray menu to
 stop PowerSifu.
+.PP
+By default, the command detaches the application from the calling terminal.
 .SH OPTIONS
 .TP
 .B --background
 Start the tray service without opening the settings window.
+.TP
+.B --foreground
+Keep the GTK process attached to the calling terminal for diagnostics.
 .TP
 .B --version
 Print the installed PowerSifu version and exit without starting the service.

@@ -17,6 +17,7 @@ trap cleanup EXIT INT TERM
 mkdir -p "$output_dir"
 install -Dm644 "$project_root/packaging/control" "$stage/DEBIAN/control"
 install -Dm755 "$project_root/bin/powersifu" "$stage/usr/bin/powersifu"
+install -Dm755 "$project_root/bin/powersifu-app" "$stage/usr/libexec/powersifu/powersifu-app"
 
 find "$project_root/src/powersifu" -maxdepth 1 -type f -name '*.py' -print | while IFS= read -r source; do
     install -Dm644 "$source" "$stage/usr/lib/python3/dist-packages/powersifu/$(basename "$source")"

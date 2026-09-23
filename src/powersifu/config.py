@@ -173,7 +173,7 @@ def sync_autostart(enabled: bool) -> Path:
 Type=Application
 Name=PowerSifu
 Comment=Automate Linux power profiles
-Exec=powersifu --background
+Exec=powersifu --foreground --background
 Icon=powersifu
 Terminal=false
 Hidden={hidden}

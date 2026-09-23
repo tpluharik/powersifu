@@ -2,6 +2,22 @@
 
 All notable changes to PowerSifu are documented here.
 
+## 0.2.3 — 2026-09-23
+
+- Added a GNOME session fallback for systems that deny direct `brightnessctl` writes.
+- Brightness failures are now shown in the settings window instead of being followed by success.
+- Restricted `brightnessctl` operations explicitly to backlight devices.
+
+## 0.2.2 — 2026-09-23
+
+- Fixed a settings-window startup crash caused by the update-status label shadowing a method.
+- Added a regression test that prevents GTK widget fields from shadowing window methods.
+
+## 0.2.1 — 2026-09-23
+
+- Launches as a standalone desktop process without remaining attached to a terminal.
+- Added an explicit `--foreground` troubleshooting mode.
+
 ## 0.2.0 — 2026-09-23
 
 - Added optional display-brightness percentages for each power profile.

@@ -1,3 +1,25 @@
+powersifu (0.2.3) unstable; urgency=medium
+
+  * Use GNOME's session display API when brightnessctl lacks write permission.
+  * Surface brightness failures in the settings window.
+  * Restrict brightnessctl operations to backlight devices.
+
+ -- Tomas Pluharik <noreply@github.com>  Wed, 23 Sep 2026 00:00:00 +0200
+
+powersifu (0.2.2) unstable; urgency=medium
+
+  * Fix settings-window activation crash caused by a method-name collision.
+  * Add regression coverage for GTK widget and method name collisions.
+
+ -- Tomas Pluharik <noreply@github.com>  Wed, 23 Sep 2026 00:00:00 +0200
+
+powersifu (0.2.1) unstable; urgency=medium
+
+  * Detach normal launches from the calling terminal.
+  * Add an explicit foreground troubleshooting mode.
+
+ -- Tomas Pluharik <noreply@github.com>  Wed, 23 Sep 2026 00:00:00 +0200
+
 powersifu (0.2.0) unstable; urgency=medium
 
   * Add optional per-profile screen brightness automation.

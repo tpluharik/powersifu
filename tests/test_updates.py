@@ -32,7 +32,7 @@ def opener_for(data):
 class UpdateTests(unittest.TestCase):
     def test_detects_new_debian_release(self):
         info = check_for_update(
-            "0.2.0",
+            "0.2.3",
             opener=opener_for(
                 {
                     "tag_name": "v0.3.0",
@@ -52,11 +52,11 @@ class UpdateTests(unittest.TestCase):
 
     def test_current_release_is_up_to_date(self):
         info = check_for_update(
-            "0.2.0",
+            "0.2.3",
             opener=opener_for(
                 {
-                    "tag_name": "v0.2.0",
-                    "html_url": "https://github.com/tpluharik/powersifu/releases/tag/v0.2.0",
+                    "tag_name": "v0.2.3",
+                    "html_url": "https://github.com/tpluharik/powersifu/releases/tag/v0.2.3",
                     "assets": [],
                 }
             ),

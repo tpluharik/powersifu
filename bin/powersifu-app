@@ -1,0 +1,8 @@
+#!/usr/bin/python3
+"""Internal foreground entry point for the PowerSifu GTK application."""
+
+from powersifu.app import main
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
