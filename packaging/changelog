@@ -1,0 +1,6 @@
+powersifu (0.1.0) unstable; urgency=medium
+
+  * Initial release with tray controls, AC and battery profile automation,
+    recurring schedules, and safe application stop rules.
+
+ -- Tomas Pluharik <noreply@github.com>  Wed, 23 Sep 2026 08:00:00 +0200

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.tpluharik.PowerSifu</id>
+  <name>PowerSifu</name>
+  <summary>Automate desktop power profiles</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <description>
+    <p>
+      PowerSifu is a small Linux tray utility for switching power profiles when
+      the charger changes, applying recurring schedules, and stopping selected
+      applications when a configured profile becomes active.
+    </p>
+    <p>
+      Application rules use exact process-name matching, target only processes
+      owned by the current user, and protect critical desktop services.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.tpluharik.PowerSifu.desktop</launchable>
+  <url type="homepage">https://github.com/tpluharik/powersifu</url>
+  <developer id="io.github.tpluharik">
+    <name>Tomas Pluharik</name>
+  </developer>
+  <content_rating type="oars-1.1" />
+  <provides>
+    <binary>powersifu</binary>
+  </provides>
+  <releases>
+    <release version="0.1.0" date="2026-09-23">
+      <description>
+        <p>Initial release with tray controls, source switching, schedules, and application rules.</p>
+      </description>
+    </release>
+  </releases>
+</component>

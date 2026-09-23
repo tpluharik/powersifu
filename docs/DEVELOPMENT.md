@@ -1,0 +1,42 @@
+# Development
+
+## Requirements
+
+- Python 3.10 or newer
+- PyGObject and GTK 3
+- Ayatana AppIndicator introspection bindings
+- `power-profiles-daemon`
+- `dpkg-deb` for packaging
+
+On Ubuntu or Debian:
+
+```bash
+sudo apt install python3-gi gir1.2-gtk-3.0 \
+  gir1.2-ayatanaappindicator3-0.1 power-profiles-daemon dpkg-dev
+```
+
+## Run from the checkout
+
+```bash
+PYTHONPATH=src python3 -m powersifu
+```
+
+Use `--background` to start without opening the settings window.
+
+## Test
+
+```bash
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+python3 -m compileall -q src
+```
+
+The tests use only the Python standard library and do not modify the active power profile.
+
+## Build the package
+
+```bash
+./packaging/build-deb.sh
+```
+
+The package is written to `dist/`. The build uses a temporary staging directory and
+`dpkg-deb --root-owner-group`, so it does not require root privileges.

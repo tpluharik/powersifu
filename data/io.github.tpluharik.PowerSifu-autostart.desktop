@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=PowerSifu
+Comment=Automate Linux power profiles
+Exec=powersifu --background
+Icon=powersifu
+Terminal=false
+Hidden=false
+X-GNOME-Autostart-enabled=true
+OnlyShowIn=GNOME;KDE;Unity;XFCE;LXQt;MATE;Cinnamon;

@@ -1,0 +1,493 @@
+"""GTK 3 settings window for PowerSifu."""
+
+from __future__ import annotations
+
+from typing import Any
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+from gi.repository import GObject, Gtk  # noqa: E402
+
+from .config import PROFILE_NAMES, ConfigStore, sync_autostart
+from .engine import AutomationEngine
+from .processes import validate_process_name
+from .scheduler import DAY_NAMES, format_days
+
+
+PROFILE_LABELS = {
+    "power-saver": "Power Saver",
+    "balanced": "Balanced",
+    "performance": "Performance",
+}
+
+
+def profile_combo(selected: str = "balanced") -> Gtk.ComboBoxText:
+    combo = Gtk.ComboBoxText()
+    for profile in PROFILE_NAMES:
+        combo.append(profile, PROFILE_LABELS[profile])
+    combo.set_active_id(selected)
+    return combo
+
+
+def _label(text: str, *, markup: bool = False) -> Gtk.Label:
+    label = Gtk.Label()
+    if markup:
+        label.set_markup(text)
+    else:
+        label.set_text(text)
+    label.set_xalign(0)
+    label.set_line_wrap(True)
+    return label
+
+
+class RuleDialog(Gtk.Dialog):
+    def __init__(self, parent: Gtk.Window, rule: dict[str, Any] | None = None) -> None:
+        super().__init__(
+            title="Application rule",
+            transient_for=parent,
+            modal=True,
+            use_header_bar=True,
+        )
+        self.add_buttons("Cancel", Gtk.ResponseType.CANCEL, "Save", Gtk.ResponseType.OK)
+        self.set_default_response(Gtk.ResponseType.OK)
+        self.set_default_size(420, -1)
+        rule = rule or {"enabled": True, "process": "", "profile": "power-saver"}
+
+        grid = Gtk.Grid(column_spacing=12, row_spacing=12, margin=18)
+        grid.attach(_label("<b>Exact process name</b>", markup=True), 0, 0, 1, 1)
+        self.process_entry = Gtk.Entry(text=rule["process"])
+        self.process_entry.set_placeholder_text("spotify")
+        self.process_entry.set_activates_default(True)
+        grid.attach(self.process_entry, 1, 0, 1, 1)
+        grid.attach(_label("<b>When profile becomes</b>", markup=True), 0, 1, 1, 1)
+        self.profile = profile_combo(rule["profile"])
+        grid.attach(self.profile, 1, 1, 1, 1)
+        self.enabled = Gtk.CheckButton(label="Rule enabled")
+        self.enabled.set_active(rule["enabled"])
+        grid.attach(self.enabled, 0, 2, 2, 1)
+        hint = _label(
+            "PowerSifu sends SIGTERM only to exact matches owned by your user. "
+            "Core desktop processes are protected."
+        )
+        hint.get_style_context().add_class("dim-label")
+        grid.attach(hint, 0, 3, 2, 1)
+        self.get_content_area().add(grid)
+        self.show_all()
+
+    def value(self) -> dict[str, Any]:
+        return {
+            "enabled": self.enabled.get_active(),
+            "process": self.process_entry.get_text().strip(),
+            "profile": self.profile.get_active_id(),
+        }
+
+
+class ScheduleDialog(Gtk.Dialog):
+    def __init__(self, parent: Gtk.Window, schedule: dict[str, Any] | None = None) -> None:
+        super().__init__(
+            title="Profile schedule",
+            transient_for=parent,
+            modal=True,
+            use_header_bar=True,
+        )
+        self.add_buttons("Cancel", Gtk.ResponseType.CANCEL, "Save", Gtk.ResponseType.OK)
+        self.set_default_response(Gtk.ResponseType.OK)
+        self.set_default_size(500, -1)
+        schedule = schedule or {
+            "enabled": True,
+            "label": "",
+            "time": "22:00",
+            "days": list(range(7)),
+            "profile": "power-saver",
+        }
+
+        grid = Gtk.Grid(column_spacing=12, row_spacing=12, margin=18)
+        grid.attach(_label("<b>Label</b>", markup=True), 0, 0, 1, 1)
+        self.label_entry = Gtk.Entry(text=schedule.get("label", ""))
+        self.label_entry.set_placeholder_text("Evening battery saver")
+        grid.attach(self.label_entry, 1, 0, 1, 1)
+
+        grid.attach(_label("<b>Time</b>", markup=True), 0, 1, 1, 1)
+        time_box = Gtk.Box(spacing=6)
+        hour, minute = (int(part) for part in schedule["time"].split(":"))
+        self.hour = Gtk.SpinButton.new_with_range(0, 23, 1)
+        self.minute = Gtk.SpinButton.new_with_range(0, 59, 1)
+        self.hour.set_value(hour)
+        self.minute.set_value(minute)
+        time_box.pack_start(self.hour, False, False, 0)
+        time_box.pack_start(Gtk.Label(label=":"), False, False, 0)
+        time_box.pack_start(self.minute, False, False, 0)
+        grid.attach(time_box, 1, 1, 1, 1)
+
+        grid.attach(_label("<b>Days</b>", markup=True), 0, 2, 1, 1)
+        days_box = Gtk.Box(spacing=4)
+        self.day_buttons: list[Gtk.ToggleButton] = []
+        for index, day in enumerate(DAY_NAMES):
+            button = Gtk.ToggleButton(label=day)
+            button.set_active(index in schedule["days"])
+            self.day_buttons.append(button)
+            days_box.pack_start(button, True, True, 0)
+        grid.attach(days_box, 1, 2, 1, 1)
+
+        grid.attach(_label("<b>Switch to</b>", markup=True), 0, 3, 1, 1)
+        self.profile = profile_combo(schedule["profile"])
+        grid.attach(self.profile, 1, 3, 1, 1)
+        self.enabled = Gtk.CheckButton(label="Schedule enabled")
+        self.enabled.set_active(schedule["enabled"])
+        grid.attach(self.enabled, 0, 4, 2, 1)
+        self.get_content_area().add(grid)
+        self.show_all()
+
+    def value(self) -> dict[str, Any]:
+        return {
+            "enabled": self.enabled.get_active(),
+            "label": self.label_entry.get_text().strip(),
+            "time": f"{self.hour.get_value_as_int():02d}:{self.minute.get_value_as_int():02d}",
+            "days": [index for index, button in enumerate(self.day_buttons) if button.get_active()],
+            "profile": self.profile.get_active_id(),
+        }
+
+
+class SettingsWindow(Gtk.ApplicationWindow):
+    def __init__(self, application: Gtk.Application, store: ConfigStore, engine: AutomationEngine) -> None:
+        super().__init__(application=application, title="PowerSifu")
+        self.store = store
+        self.engine = engine
+        self.set_default_size(760, 560)
+        self.set_icon_name("powersifu")
+
+        header = Gtk.HeaderBar(title="PowerSifu", subtitle="Power profiles under control")
+        header.set_show_close_button(True)
+        save_button = Gtk.Button.new_with_label("Save")
+        save_button.get_style_context().add_class("suggested-action")
+        save_button.connect("clicked", self._save)
+        header.pack_end(save_button)
+        self.set_titlebar(header)
+
+        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        self.add(root)
+        self.notebook = Gtk.Notebook()
+        self.notebook.set_border_width(12)
+        root.pack_start(self.notebook, True, True, 0)
+
+        self._build_general_page()
+        self._build_rules_page()
+        self._build_schedules_page()
+        self._build_about_page()
+        self._load_from_config()
+
+    def _build_general_page(self) -> None:
+        page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14, margin=14)
+
+        state_frame = Gtk.Frame(label=" Current state ")
+        state_grid = Gtk.Grid(column_spacing=18, row_spacing=8, margin=14)
+        self.profile_state = _label("Unknown")
+        self.source_state = _label("Unknown")
+        state_grid.attach(_label("<b>Profile</b>", markup=True), 0, 0, 1, 1)
+        state_grid.attach(self.profile_state, 1, 0, 1, 1)
+        state_grid.attach(_label("<b>Power source</b>", markup=True), 0, 1, 1, 1)
+        state_grid.attach(self.source_state, 1, 1, 1, 1)
+        state_frame.add(state_grid)
+        page.pack_start(state_frame, False, False, 0)
+
+        automation_frame = Gtk.Frame(label=" Automatic source switching ")
+        grid = Gtk.Grid(column_spacing=18, row_spacing=12, margin=14)
+        self.auto_enabled = Gtk.CheckButton(label="Change profile when AC power changes")
+        grid.attach(self.auto_enabled, 0, 0, 2, 1)
+        grid.attach(_label("When plugged in"), 0, 1, 1, 1)
+        self.ac_profile = profile_combo()
+        grid.attach(self.ac_profile, 1, 1, 1, 1)
+        grid.attach(_label("When running on battery"), 0, 2, 1, 1)
+        self.battery_profile = profile_combo("power-saver")
+        grid.attach(self.battery_profile, 1, 2, 1, 1)
+        apply_button = Gtk.Button.new_with_label("Apply current source rule now")
+        apply_button.connect("clicked", self._apply_source)
+        grid.attach(apply_button, 0, 3, 2, 1)
+        automation_frame.add(grid)
+        page.pack_start(automation_frame, False, False, 0)
+
+        startup_frame = Gtk.Frame(label=" Startup ")
+        startup_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, margin=14)
+        self.start_at_login = Gtk.CheckButton(label="Start PowerSifu in the tray when I sign in")
+        startup_box.pack_start(self.start_at_login, False, False, 0)
+        startup_frame.add(startup_box)
+        page.pack_start(startup_frame, False, False, 0)
+        self.notebook.append_page(page, Gtk.Label(label="General"))
+
+    def _build_rules_page(self) -> None:
+        page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin=14)
+        page.pack_start(
+            _label(
+                "Stop selected applications when a profile becomes active. Rules use an exact "
+                "Linux process name and send a graceful termination request."
+            ),
+            False,
+            False,
+            0,
+        )
+        self.rules_model = Gtk.ListStore(bool, str, str)
+        self.rules_view = Gtk.TreeView(model=self.rules_model)
+        toggle = Gtk.CellRendererToggle()
+        toggle.connect("toggled", self._toggle_rule)
+        self.rules_view.append_column(Gtk.TreeViewColumn("Enabled", toggle, active=0))
+        self.rules_view.append_column(Gtk.TreeViewColumn("Process", Gtk.CellRendererText(), text=1))
+        self.rules_view.append_column(Gtk.TreeViewColumn("When profile becomes", Gtk.CellRendererText(), text=2))
+        self.rules_view.connect("row-activated", lambda *_args: self._edit_rule())
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        scroll.add(self.rules_view)
+        page.pack_start(scroll, True, True, 0)
+        buttons = Gtk.Box(spacing=6)
+        for text, callback in (("Add", self._add_rule), ("Edit", self._edit_rule), ("Remove", self._remove_rule)):
+            button = Gtk.Button.new_with_label(text)
+            button.connect("clicked", lambda _button, fn=callback: fn())
+            buttons.pack_start(button, False, False, 0)
+        page.pack_start(buttons, False, False, 0)
+        self.notebook.append_page(page, Gtk.Label(label="Application Rules"))
+
+    def _build_schedules_page(self) -> None:
+        page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin=14)
+        page.pack_start(
+            _label("Create recurring weekly times that switch the system power profile."),
+            False,
+            False,
+            0,
+        )
+        self.schedules_model = Gtk.ListStore(bool, str, str, str, str, GObject.TYPE_PYOBJECT)
+        self.schedules_view = Gtk.TreeView(model=self.schedules_model)
+        toggle = Gtk.CellRendererToggle()
+        toggle.connect("toggled", self._toggle_schedule)
+        columns = (
+            ("Enabled", toggle, "active", 0),
+            ("Label", Gtk.CellRendererText(), "text", 1),
+            ("Time", Gtk.CellRendererText(), "text", 2),
+            ("Days", Gtk.CellRendererText(), "text", 3),
+            ("Profile", Gtk.CellRendererText(), "text", 4),
+        )
+        for title, renderer, attribute, index in columns:
+            self.schedules_view.append_column(Gtk.TreeViewColumn(title, renderer, **{attribute: index}))
+        self.schedules_view.connect("row-activated", lambda *_args: self._edit_schedule())
+        scroll = Gtk.ScrolledWindow()
+        scroll.add(self.schedules_view)
+        page.pack_start(scroll, True, True, 0)
+        buttons = Gtk.Box(spacing=6)
+        for text, callback in (
+            ("Add", self._add_schedule),
+            ("Edit", self._edit_schedule),
+            ("Remove", self._remove_schedule),
+        ):
+            button = Gtk.Button.new_with_label(text)
+            button.connect("clicked", lambda _button, fn=callback: fn())
+            buttons.pack_start(button, False, False, 0)
+        page.pack_start(buttons, False, False, 0)
+        self.notebook.append_page(page, Gtk.Label(label="Schedules"))
+
+    def _build_about_page(self) -> None:
+        page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin=28)
+        image = Gtk.Image.new_from_icon_name("powersifu", Gtk.IconSize.DIALOG)
+        page.pack_start(image, False, False, 4)
+        title = _label("<span size='xx-large' weight='bold'>PowerSifu</span>", markup=True)
+        title.set_xalign(0.5)
+        page.pack_start(title, False, False, 0)
+        description = _label(
+            "A small Linux tray utility for automatic power-profile switching, "
+            "weekly schedules, and profile-aware application rules."
+        )
+        description.set_justify(Gtk.Justification.CENTER)
+        description.set_xalign(0.5)
+        page.pack_start(description, False, False, 0)
+        safety = _label(
+            "PowerSifu never executes user-provided shell commands. Application rules only "
+            "match exact same-user process names, and critical desktop processes are protected."
+        )
+        safety.set_justify(Gtk.Justification.CENTER)
+        safety.set_xalign(0.5)
+        page.pack_start(safety, False, False, 12)
+        self.notebook.append_page(page, Gtk.Label(label="About"))
+
+    def _load_from_config(self) -> None:
+        config = self.store.data
+        automation = config["automation"]
+        self.auto_enabled.set_active(automation["enabled"])
+        self.ac_profile.set_active_id(automation["ac_profile"])
+        self.battery_profile.set_active_id(automation["battery_profile"])
+        self.start_at_login.set_active(config["start_at_login"])
+
+        self.rules_model.clear()
+        for rule in config["application_rules"]:
+            self.rules_model.append(
+                [rule["enabled"], rule["process"], rule["profile"]]
+            )
+        self.schedules_model.clear()
+        for schedule in config["schedules"]:
+            self.schedules_model.append(
+                [
+                    schedule["enabled"],
+                    schedule["label"],
+                    schedule["time"],
+                    format_days(schedule["days"]),
+                    schedule["profile"],
+                    schedule["days"],
+                ]
+            )
+
+    def update_status(self, profile: str, on_ac: bool) -> None:
+        self.profile_state.set_text(PROFILE_LABELS.get(profile, profile))
+        self.source_state.set_text("AC power" if on_ac else "Battery")
+
+    def _save(self, _button: Gtk.Button) -> None:
+        config = self.store.data
+        config["start_at_login"] = self.start_at_login.get_active()
+        config["automation"].update(
+            {
+                "enabled": self.auto_enabled.get_active(),
+                "ac_profile": self.ac_profile.get_active_id(),
+                "battery_profile": self.battery_profile.get_active_id(),
+            }
+        )
+        config["application_rules"] = [
+            {"enabled": row[0], "process": row[1], "profile": row[2]}
+            for row in self.rules_model
+        ]
+        config["schedules"] = [
+            {
+                "enabled": row[0],
+                "label": row[1],
+                "time": row[2],
+                "days": list(row[5]),
+                "profile": row[4],
+            }
+            for row in self.schedules_model
+        ]
+        try:
+            self.store.save()
+            sync_autostart(config["start_at_login"])
+            self.engine.apply_current_source()
+        except (OSError, ValueError) as error:
+            self._message("Could not save settings", str(error), Gtk.MessageType.ERROR)
+            return
+        self._message("Settings saved", "PowerSifu is using the updated rules.", Gtk.MessageType.INFO)
+
+    def _apply_source(self, _button: Gtk.Button) -> None:
+        self._save(_button)
+
+    def _selected(self, view: Gtk.TreeView) -> Gtk.TreeIter | None:
+        _model, tree_iter = view.get_selection().get_selected()
+        return tree_iter
+
+    def _toggle_rule(self, _renderer: Gtk.CellRendererToggle, path: str) -> None:
+        self.rules_model[path][0] = not self.rules_model[path][0]
+
+    def _toggle_schedule(self, _renderer: Gtk.CellRendererToggle, path: str) -> None:
+        self.schedules_model[path][0] = not self.schedules_model[path][0]
+
+    def _add_rule(self) -> None:
+        dialog = RuleDialog(self)
+        if dialog.run() == Gtk.ResponseType.OK:
+            value = dialog.value()
+            if self._valid_rule(value):
+                self.rules_model.append([value["enabled"], value["process"], value["profile"]])
+        dialog.destroy()
+
+    def _edit_rule(self) -> None:
+        tree_iter = self._selected(self.rules_view)
+        if tree_iter is None:
+            return
+        row = self.rules_model[tree_iter]
+        dialog = RuleDialog(
+            self,
+            {"enabled": row[0], "process": row[1], "profile": row[2]},
+        )
+        if dialog.run() == Gtk.ResponseType.OK:
+            value = dialog.value()
+            if self._valid_rule(value):
+                row[0], row[1], row[2] = value["enabled"], value["process"], value["profile"]
+        dialog.destroy()
+
+    def _valid_rule(self, value: dict[str, Any]) -> bool:
+        if validate_process_name(value["process"]):
+            return True
+        self._message(
+            "Invalid process name",
+            "Use an exact executable name with letters, numbers, dots, underscores, plus signs, "
+            "@ signs, or hyphens. Core desktop processes cannot be targeted.",
+            Gtk.MessageType.WARNING,
+        )
+        return False
+
+    def _remove_rule(self) -> None:
+        tree_iter = self._selected(self.rules_view)
+        if tree_iter is not None:
+            self.rules_model.remove(tree_iter)
+
+    def _add_schedule(self) -> None:
+        dialog = ScheduleDialog(self)
+        if dialog.run() == Gtk.ResponseType.OK:
+            self._append_schedule(dialog.value())
+        dialog.destroy()
+
+    def _edit_schedule(self) -> None:
+        tree_iter = self._selected(self.schedules_view)
+        if tree_iter is None:
+            return
+        row = self.schedules_model[tree_iter]
+        dialog = ScheduleDialog(
+            self,
+            {
+                "enabled": row[0],
+                "label": row[1],
+                "time": row[2],
+                "days": list(row[5]),
+                "profile": row[4],
+            },
+        )
+        if dialog.run() == Gtk.ResponseType.OK:
+            value = dialog.value()
+            if value["days"]:
+                row[0], row[1], row[2], row[3], row[4], row[5] = (
+                    value["enabled"],
+                    value["label"],
+                    value["time"],
+                    format_days(value["days"]),
+                    value["profile"],
+                    value["days"],
+                )
+            else:
+                self._no_days_message()
+        dialog.destroy()
+
+    def _append_schedule(self, value: dict[str, Any]) -> None:
+        if not value["days"]:
+            self._no_days_message()
+            return
+        self.schedules_model.append(
+            [
+                value["enabled"],
+                value["label"],
+                value["time"],
+                format_days(value["days"]),
+                value["profile"],
+                value["days"],
+            ]
+        )
+
+    def _no_days_message(self) -> None:
+        self._message("Select at least one day", "The schedule needs a day to run.", Gtk.MessageType.WARNING)
+
+    def _remove_schedule(self) -> None:
+        tree_iter = self._selected(self.schedules_view)
+        if tree_iter is not None:
+            self.schedules_model.remove(tree_iter)
+
+    def _message(self, title: str, body: str, message_type: Gtk.MessageType) -> None:
+        dialog = Gtk.MessageDialog(
+            transient_for=self,
+            modal=True,
+            message_type=message_type,
+            buttons=Gtk.ButtonsType.OK,
+            text=title,
+        )
+        dialog.format_secondary_text(body)
+        dialog.run()
+        dialog.destroy()

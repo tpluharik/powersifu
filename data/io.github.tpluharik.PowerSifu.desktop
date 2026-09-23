@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=PowerSifu
+GenericName=Power Profile Manager
+Comment=Automate Linux power profiles and profile-aware application rules
+Exec=powersifu
+Icon=powersifu
+Terminal=false
+Categories=System;Monitor;
+Keywords=power;battery;profile;energy;schedule;
+StartupNotify=true
+DBusActivatable=false
