@@ -85,6 +85,15 @@ def set_brightness(
     if isinstance(percent, bool) or not isinstance(percent, int) or not 1 <= percent <= 100:
         raise ValueError("Brightness must be an integer from 1 to 100")
 
+    # GNOME Shell keeps its own brightness model for the Quick Settings slider.
+    # Updating that session model first keeps the slider and hardware in sync.
+    # Other desktops fall back to brightnessctl below.
+    try:
+        (gnome_setter or _set_gnome_brightness)(percent)
+        return
+    except BrightnessError as error:
+        desktop_error = str(error)
+
     try:
         runner(
             ["brightnessctl", "--class=backlight", "--quiet", "set", f"{percent}%"],
@@ -93,21 +102,23 @@ def set_brightness(
             text=True,
             timeout=8,
         )
-        return
     except FileNotFoundError as error:
         command_error = "brightnessctl is not installed"
+        command_exception = error
     except subprocess.TimeoutExpired as error:
         command_error = "brightnessctl did not respond"
+        command_exception = error
     except subprocess.CalledProcessError as error:
         command_error = (
             (error.stderr or "").strip()
             or (error.stdout or "").strip()
             or "brightnessctl failed"
         )
+        command_exception = error
+    else:
+        return
 
-    try:
-        (gnome_setter or _set_gnome_brightness)(percent)
-    except BrightnessError as desktop_error:
-        raise BrightnessError(
-            f"{command_error}. GNOME fallback also failed: {desktop_error}"
-        ) from desktop_error
+    raise BrightnessError(
+        f"GNOME display service failed: {desktop_error}. "
+        f"brightnessctl also failed: {command_error}"
+    ) from command_exception

@@ -2,6 +2,12 @@
 
 All notable changes to PowerSifu are documented here.
 
+## 0.3.2 — 2026-09-23
+
+- Changed GNOME brightness through the desktop session before using `brightnessctl`.
+- Kept GNOME's Quick Settings brightness slider synchronized with profile changes.
+- Retained `brightnessctl` as the fallback for other Linux desktops.
+
 ## 0.3.1 — 2026-09-23
 
 - Marked the currently active power profile in the Brightness tab.

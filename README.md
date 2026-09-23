@@ -26,10 +26,10 @@ PowerSifu targets Ubuntu and Debian desktops using
 
 ## Install
 
-Download or build `powersifu_0.3.1_all.deb`, then install it with:
+Download or build `powersifu_0.3.2_all.deb`, then install it with:
 
 ```bash
-sudo apt install ./dist/powersifu_0.3.1_all.deb
+sudo apt install ./dist/powersifu_0.3.2_all.deb
 ```
 
 Launch **PowerSifu** from the application menu. The package also starts it in the tray on future
@@ -66,9 +66,10 @@ control startup. **Apply current source rule now** immediately evaluates the sav
 
 Open the **Brightness** tab, enable profile brightness, and choose a percentage for Power
 Saver, Balanced, and Performance. The setting is applied when a profile activates and when
-you save the configuration. PowerSifu first uses `brightnessctl`, then safely falls back to
-GNOME's per-user display service when direct backlight access is restricted. The feature remains
-off by default, and external monitors may require their own controls.
+you save the configuration. On GNOME, PowerSifu uses the desktop session first so the physical
+backlight and the Quick Settings brightness slider remain synchronized. Other desktops use
+`brightnessctl` as a safe, unprivileged fallback. The feature remains off by default, and external
+monitors may require their own controls.
 
 The active profile is marked in the Brightness tab. **Apply now** beside any profile previews that
 percentage immediately, making it easy to verify the display response before saving.
@@ -123,7 +124,7 @@ Install development dependencies on Ubuntu/Debian:
 
 ```bash
 sudo apt install python3-gi gir1.2-gtk-3.0 \
-  gir1.2-ayatanaappindicator3-0.1 power-profiles-daemon brightnessctl +  pkexec apt dpkg-dev
+  gir1.2-ayatanaappindicator3-0.1 power-profiles-daemon brightnessctl pkexec apt dpkg-dev
 ```
 
 Run tests and build the package:
@@ -147,7 +148,7 @@ one by default; other GNOME installations may need `gnome-shell-extension-appind
 is available. Your distribution may display an authorization prompt for profile changes.
 
 **Brightness does not change:** PowerSifu shows the underlying error after saving. On GNOME it
-uses the session display service when direct backlight access is denied. Other desktops should
+uses the session display service so the system slider follows the change. Other desktops should
 provide a working `brightnessctl` setup. External displays may require their own controls.
 
 **An update fails:** confirm that GitHub is reachable and approve the system authentication

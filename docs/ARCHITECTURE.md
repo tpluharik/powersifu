@@ -7,8 +7,8 @@ no privileged daemon and no network service.
 
 - `config.py` owns the versioned JSON configuration and XDG autostart override.
 - `power.py` reads Linux power-supply state and calls `powerprofilesctl`.
-- `brightness.py` validates percentages, calls `brightnessctl`, and falls back to Mutter's
-  per-user display API when direct backlight access is restricted.
+- `brightness.py` validates percentages, uses Mutter's per-user display API first on GNOME so
+  desktop controls remain synchronized, and falls back to `brightnessctl` elsewhere.
 - `updates.py` performs bounded GitHub release checks and downloads, validates Debian package
   identity, and requests authenticated installation through the system package manager.
 - `scheduler.py` matches enabled recurring weekly schedules once per minute.

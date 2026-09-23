@@ -6,9 +6,21 @@ from powersifu.brightness import BrightnessError, set_brightness
 
 
 class BrightnessTests(unittest.TestCase):
-    def test_sets_absolute_percentage(self):
+    def test_prefers_gnome_session_to_keep_desktop_slider_in_sync(self):
         runner = Mock()
-        set_brightness(42, runner=runner)
+        gnome_setter = Mock()
+
+        set_brightness(42, runner=runner, gnome_setter=gnome_setter)
+
+        gnome_setter.assert_called_once_with(42)
+        runner.assert_not_called()
+
+    def test_gnome_error_falls_back_to_absolute_percentage(self):
+        runner = Mock()
+        gnome_setter = Mock(side_effect=BrightnessError("GNOME unavailable"))
+
+        set_brightness(42, runner=runner, gnome_setter=gnome_setter)
+
         runner.assert_called_once_with(
             ["brightnessctl", "--class=backlight", "--quiet", "set", "42%"],
             check=True,
@@ -45,7 +57,7 @@ class BrightnessTests(unittest.TestCase):
                 gnome_setter=Mock(side_effect=BrightnessError("GNOME unavailable")),
             )
 
-    def test_permission_error_falls_back_to_gnome_session(self):
+    def test_successful_gnome_session_does_not_try_denied_brightnessctl(self):
         runner = Mock(
             side_effect=subprocess.CalledProcessError(
                 1, ["brightnessctl"], stderr="Permission denied"
@@ -56,6 +68,7 @@ class BrightnessTests(unittest.TestCase):
         set_brightness(85, runner=runner, gnome_setter=gnome_setter)
 
         gnome_setter.assert_called_once_with(85)
+        runner.assert_not_called()
 
 
 if __name__ == "__main__":
