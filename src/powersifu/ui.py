@@ -15,7 +15,14 @@ from .config import PROFILE_NAMES, ConfigStore, sync_autostart
 from .engine import AutomationEngine
 from .processes import validate_process_name
 from .scheduler import DAY_NAMES, format_days
-from .updates import UpdateCheckError, UpdateInfo, check_for_update
+from .updates import (
+    UpdateCheckError,
+    UpdateInfo,
+    UpdateInstallError,
+    check_for_update,
+    download_update,
+    install_update,
+)
 
 
 PROFILE_LABELS = {
@@ -157,6 +164,7 @@ class SettingsWindow(Gtk.ApplicationWindow):
         super().__init__(application=application, title="PowerSifu")
         self.store = store
         self.engine = engine
+        self._available_update: UpdateInfo | None = None
         self._update_uri: str | None = None
         self.set_default_size(800, 600)
         self.set_icon_name("powersifu")
@@ -362,11 +370,11 @@ class SettingsWindow(Gtk.ApplicationWindow):
         self.update_check_button = Gtk.Button.new_with_label("Check for updates")
         self.update_check_button.connect("clicked", self._check_for_updates)
         update_buttons.pack_start(self.update_check_button, False, False, 0)
-        self.update_open_button = Gtk.Button.new_with_label("Open release")
-        self.update_open_button.connect("clicked", self._open_update)
-        self.update_open_button.set_no_show_all(True)
-        self.update_open_button.hide()
-        update_buttons.pack_start(self.update_open_button, False, False, 0)
+        self.update_action_button = Gtk.Button.new_with_label("Install update")
+        self.update_action_button.connect("clicked", self._update_action)
+        self.update_action_button.set_no_show_all(True)
+        self.update_action_button.hide()
+        update_buttons.pack_start(self.update_action_button, False, False, 0)
         page.pack_start(update_buttons, False, False, 0)
         self.notebook.append_page(page, Gtk.Label(label="About"))
 
@@ -458,9 +466,10 @@ class SettingsWindow(Gtk.ApplicationWindow):
             value.set_sensitive(enabled)
 
     def _check_for_updates(self, _button: Gtk.Button) -> None:
+        self._available_update = None
         self._update_uri = None
         self.update_check_button.set_sensitive(False)
-        self.update_open_button.hide()
+        self.update_action_button.hide()
         self.update_check_status.set_text("Checking the official GitHub release…")
         worker = threading.Thread(target=self._check_for_updates_worker, daemon=True)
         worker.start()
@@ -488,23 +497,79 @@ class SettingsWindow(Gtk.ApplicationWindow):
             return GLib.SOURCE_REMOVE
 
         self.update_check_status.set_text(
-            f"PowerSifu {info.latest_version} is available. Review it before installing."
+            f"PowerSifu {info.latest_version} is available."
         )
-        self._update_uri = info.download_url or info.release_url
-        if info.download_url:
-            self.update_open_button.set_label(f"Download {info.latest_version} .deb")
+        if info.download_url and info.download_sha256 and info.download_size:
+            self._available_update = info
+            self.update_action_button.set_label(f"Install {info.latest_version}")
         else:
-            self.update_open_button.set_label(f"Open {info.latest_version} release")
-        self.update_open_button.show()
+            self._update_uri = info.release_url
+            self.update_action_button.set_label(f"Open {info.latest_version} release")
+        self.update_action_button.show()
         return GLib.SOURCE_REMOVE
 
-    def _open_update(self, _button: Gtk.Button) -> None:
+    def _update_action(self, _button: Gtk.Button) -> None:
+        if self._available_update is not None:
+            info = self._available_update
+            self.update_check_button.set_sensitive(False)
+            self.update_action_button.set_sensitive(False)
+            self.update_check_status.set_text(
+                f"Downloading and verifying PowerSifu {info.latest_version}…"
+            )
+            worker = threading.Thread(
+                target=self._install_update_worker,
+                args=(info,),
+                daemon=True,
+            )
+            worker.start()
+            return
         if self._update_uri is None:
             return
         try:
             Gio.AppInfo.launch_default_for_uri(self._update_uri, None)
         except GLib.Error as error:
             self._message("Could not open the update", str(error), Gtk.MessageType.ERROR)
+
+    def _install_update_worker(self, info: UpdateInfo) -> None:
+        package_path = None
+        try:
+            package_path = download_update(info)
+            GLib.idle_add(self._show_installing_update, info.latest_version)
+            install_update(package_path)
+        except UpdateInstallError as error:
+            GLib.idle_add(self._finish_update_install, info.latest_version, str(error))
+        else:
+            GLib.idle_add(self._finish_update_install, info.latest_version, None)
+        finally:
+            if package_path is not None:
+                package_path.unlink(missing_ok=True)
+
+    def _show_installing_update(self, version: str) -> bool:
+        self.update_check_status.set_text(
+            f"Installing PowerSifu {version}… Approve the system authentication prompt."
+        )
+        return GLib.SOURCE_REMOVE
+
+    def _finish_update_install(self, version: str, error: str | None) -> bool:
+        self.update_check_button.set_sensitive(True)
+        self.update_action_button.set_sensitive(True)
+        if error is not None:
+            self.update_check_status.set_text("The update was not installed.")
+            self._message("Could not install the update", error, Gtk.MessageType.ERROR)
+            return GLib.SOURCE_REMOVE
+
+        self._available_update = None
+        self._update_uri = None
+        self.update_action_button.hide()
+        self.update_check_status.set_text(
+            f"PowerSifu {version} is installed. Quit and reopen PowerSifu to use it."
+        )
+        self._message(
+            "Update installed",
+            f"PowerSifu {version} is ready. Quit and reopen the app to finish updating.",
+            Gtk.MessageType.INFO,
+        )
+        return GLib.SOURCE_REMOVE
 
     def _apply_source(self, _button: Gtk.Button) -> None:
         self._save(_button)

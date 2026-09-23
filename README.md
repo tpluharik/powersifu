@@ -20,16 +20,16 @@ PowerSifu targets Ubuntu and Debian desktops using
   Performance becomes active.
 - **Startup integration:** runs quietly at login and can be disabled from the GUI.
 - **Desktop notifications:** reports profile changes, stopped applications, and actionable errors.
-- **Update checker:** manually check the official GitHub release and open its `.deb` download.
+- **In-app updater:** download, verify, and install official releases with system authentication.
 - **Safe by construction:** no arbitrary commands, no root process termination, and protected
   desktop processes.
 
 ## Install
 
-Download or build `powersifu_0.2.3_all.deb`, then install it with:
+Download or build `powersifu_0.3.0_all.deb`, then install it with:
 
 ```bash
-sudo apt install ./dist/powersifu_0.2.3_all.deb
+sudo apt install ./dist/powersifu_0.3.0_all.deb
 ```
 
 Launch **PowerSifu** from the application menu. The package also starts it in the tray on future
@@ -109,7 +109,10 @@ PowerSifu checks power state every five seconds. It delegates profile changes to
 `power-profiles-daemon` and applies optional display changes through the desktop session or
 `brightnessctl`; it does not install a privileged daemon or custom authorization policy. The
 About-page update checker contacts only
-the official GitHub Releases API, and only after **Check for updates** is clicked.
+the official GitHub Releases API after **Check for updates** is clicked. **Install update**
+downloads the official package, verifies its Debian identity and version, and requests
+authentication through the operating system before installation. The download's size and SHA-256
+digest must also match GitHub's release metadata.
 
 ## Build from source
 
@@ -117,7 +120,7 @@ Install development dependencies on Ubuntu/Debian:
 
 ```bash
 sudo apt install python3-gi gir1.2-gtk-3.0 \
-  gir1.2-ayatanaappindicator3-0.1 power-profiles-daemon brightnessctl dpkg-dev
+  gir1.2-ayatanaappindicator3-0.1 power-profiles-daemon brightnessctl +  pkexec apt dpkg-dev
 ```
 
 Run tests and build the package:
@@ -144,8 +147,9 @@ is available. Your distribution may display an authorization prompt for profile 
 uses the session display service when direct backlight access is denied. Other desktops should
 provide a working `brightnessctl` setup. External displays may require their own controls.
 
-**The update check fails:** confirm that GitHub is reachable. PowerSifu does not check in the
-background; retry from the About tab when network access is available.
+**An update fails:** confirm that GitHub is reachable and approve the system authentication
+prompt. PowerSifu verifies the package before requesting installation and reports package-manager
+errors in the About tab.
 
 **An application rule does nothing:** process matching is exact. Confirm the name with the `ps`
 command above. Wrapper applications may use a different executable name than their desktop label.

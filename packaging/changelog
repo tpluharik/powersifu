@@ -1,3 +1,11 @@
+powersifu (0.3.0) unstable; urgency=medium
+
+  * Add authenticated in-app installation of official Debian updates.
+  * Verify download origin, size, SHA-256, package identity, version, and architecture.
+  * Report updater and package-manager failures in the settings window.
+
+ -- Tomas Pluharik <noreply@github.com>  Wed, 23 Sep 2026 00:00:00 +0200
+
 powersifu (0.2.3) unstable; urgency=medium
 
   * Use GNOME's session display API when brightnessctl lacks write permission.

@@ -1,4 +1,4 @@
-.TH POWERSIFU 1 "23 September 2026" "PowerSifu 0.2.3" "User Commands"
+.TH POWERSIFU 1 "23 September 2026" "PowerSifu 0.3.0" "User Commands"
 .SH NAME
 powersifu \- automate Linux desktop power profiles
 .SH SYNOPSIS
@@ -14,7 +14,7 @@ powersifu \- automate Linux desktop power profiles
 .B PowerSifu
 is a GTK system-tray utility for power-profiles-daemon. It can select profiles
 when AC power changes, apply profile-specific display brightness, run recurring
-weekly schedules, check for published updates on request, and gracefully terminate
+weekly schedules, install verified updates with system authentication, and gracefully terminate
 configured same-user applications when a selected profile becomes active.
 .PP
 The settings window provides General, Brightness, Application Rules, Schedules, and About pages.
@@ -43,6 +43,8 @@ Per-user override for automatic login startup.
 Application rules accept exact executable names only. PowerSifu sends SIGTERM
 to matching processes owned by the current user and protects core desktop
 processes. It does not execute arbitrary commands or install privilege rules.
+In-app updates verify package metadata before a fixed package-manager command
+requests authorization through the operating system.
 .SH SEE ALSO
 .BR powerprofilesctl (1),
 .BR power-profiles-daemon (8)

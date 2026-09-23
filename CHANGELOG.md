@@ -2,6 +2,13 @@
 
 All notable changes to PowerSifu are documented here.
 
+## 0.3.0 — 2026-09-23
+
+- Added authenticated installation of official updates directly from the About page.
+- Downloads are size-limited, restricted to GitHub-owned HTTPS hosts, and SHA-256 verified.
+- Debian package name, version, and architecture are verified before privilege escalation.
+- Package-manager and authentication errors are reported inside the application.
+
 ## 0.2.3 — 2026-09-23
 
 - Added a GNOME session fallback for systems that deny direct `brightnessctl` writes.

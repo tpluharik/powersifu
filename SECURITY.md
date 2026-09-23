@@ -24,9 +24,17 @@ install privilege rules. Brightness automation is disabled by default.
 
 ## Update checks
 
-Update checks run only after the user clicks **Check for updates**. Responses are size-limited,
-and release/download links must use HTTPS on GitHub-owned hosts. PowerSifu opens the official
-release or `.deb` in the desktop handler; it never installs packages or escalates privileges.
+Update checks run only after the user clicks **Check for updates**. Responses and downloads are
+size-limited, redirects must remain on GitHub-owned HTTPS hosts, and the asset filename must match
+the advertised version. The downloaded byte count and SHA-256 digest must match GitHub's release
+metadata. Before installation, PowerSifu uses `dpkg-deb` to verify the package name, version, and
+architecture.
+
+Installation starts only after the user clicks **Install update**. PowerSifu invokes the fixed
+argument sequence `pkexec apt-get install --yes <verified-package>` without a shell or
+user-provided command. The operating system displays its authentication dialog and controls
+authorization; cancellation leaves the installed version unchanged. PowerSifu installs no custom
+privilege rules and removes the cached package after the attempt.
 
 ## Reporting a vulnerability
 

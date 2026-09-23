@@ -1,13 +1,13 @@
 Package: powersifu
-Version: 0.2.3
+Version: 0.3.0
 Section: utils
 Priority: optional
 Architecture: all
 Maintainer: Tomas Pluharik <noreply@github.com>
-Depends: python3 (>= 3.10), python3-gi, gir1.2-gtk-3.0, gir1.2-ayatanaappindicator3-0.1, power-profiles-daemon
+Depends: python3 (>= 3.10), python3-gi, gir1.2-gtk-3.0, gir1.2-ayatanaappindicator3-0.1, power-profiles-daemon, pkexec, apt, dpkg
 Recommends: gnome-shell-extension-appindicator, brightnessctl
 Homepage: https://github.com/tpluharik/powersifu
 Description: tray-based Linux power-profile automation
  PowerSifu switches power profiles based on AC or battery state, applies
- per-profile display brightness, runs recurring schedules, checks for
- updates, and gracefully stops configured same-user applications.
+ per-profile display brightness, runs recurring schedules, installs verified
+ updates with system authentication, and stops configured same-user applications.
