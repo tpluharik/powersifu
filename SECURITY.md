@@ -18,9 +18,11 @@ PowerSifu does not install custom privilege rules.
 
 ## Brightness control
 
-Brightness values are limited to 1–100 percent and passed as a fixed argument to
-`brightnessctl`. PowerSifu does not accept a device path or command from the user and does not
-install privilege rules. Brightness automation is disabled by default.
+Brightness values are limited to 1–100 percent. On GNOME, PowerSifu updates the shell's existing
+brightness slider through the per-user accessibility bus and the built-in backlight through
+Mutter's session service. Other desktops receive a fixed percentage argument through
+`brightnessctl`. PowerSifu does not inspect or change application content, accept a device path or
+command from the user, or install privilege rules. Brightness automation is disabled by default.
 
 ## Update checks
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gettext
 import subprocess
 from collections.abc import Callable
 
@@ -14,7 +15,61 @@ Runner = Callable[..., subprocess.CompletedProcess[str]]
 BrightnessSetter = Callable[[int], None]
 
 
-def _set_gnome_brightness(percent: int) -> None:
+def _set_gnome_slider_brightness(percent: int) -> None:
+    """Set GNOME Shell's global slider so its UI and the backlight stay aligned."""
+
+    try:
+        import gi
+
+        gi.require_version("Atspi", "2.0")
+        from gi.repository import Atspi, GLib
+    except (ImportError, ValueError) as error:
+        raise BrightnessError("GNOME slider bindings are unavailable") from error
+
+    slider_name = gettext.dgettext("gnome-shell", "Brightness")
+    try:
+        desktop = Atspi.get_desktop(0)
+        shell = None
+        for index in range(desktop.get_child_count()):
+            try:
+                candidate = desktop.get_child_at_index(index)
+                if candidate is not None and candidate.get_name() == "gnome-shell":
+                    shell = candidate
+                    break
+            except GLib.Error:
+                continue
+        if shell is None:
+            raise BrightnessError("GNOME Shell is not present on the accessibility bus")
+
+        stack = [shell]
+        visited = 0
+        while stack and visited < 10_000:
+            accessible = stack.pop()
+            visited += 1
+            try:
+                if (
+                    accessible.get_role() == Atspi.Role.SLIDER
+                    and accessible.get_name() == slider_name
+                ):
+                    value = accessible.get_value_iface()
+                    if value is None or not value.set_current_value(percent / 100):
+                        raise BrightnessError("GNOME rejected the brightness slider value")
+                    return
+                for index in range(accessible.get_child_count() - 1, -1, -1):
+                    child = accessible.get_child_at_index(index)
+                    if child is not None:
+                        stack.append(child)
+            except GLib.Error:
+                continue
+    except BrightnessError:
+        raise
+    except (GLib.Error, AttributeError, RuntimeError, TypeError) as error:
+        raise BrightnessError(f"GNOME slider service failed: {error}") from error
+
+    raise BrightnessError("GNOME's global brightness slider was not found")
+
+
+def _set_mutter_brightness(percent: int) -> None:
     """Set the active internal panel through Mutter's session D-Bus API."""
 
     try:
@@ -57,7 +112,8 @@ def _set_gnome_brightness(percent: int) -> None:
         maximum = int(device["max"])
         if maximum <= 0 or minimum < 0 or minimum > maximum:
             raise BrightnessError("GNOME reported an invalid backlight range")
-        value = max(minimum, min(maximum, round(maximum * percent / 100)))
+        value = minimum + round((maximum - minimum) * percent / 100)
+        value = max(minimum, min(maximum, value))
         connection.call_sync(
             destination,
             object_path,
@@ -73,6 +129,28 @@ def _set_gnome_brightness(percent: int) -> None:
         raise
     except (GLib.Error, KeyError, TypeError, ValueError) as error:
         raise BrightnessError(f"GNOME display service failed: {error}") from error
+
+
+def _set_gnome_brightness(percent: int) -> None:
+    """Update GNOME Shell's global slider and Mutter's physical backlight."""
+
+    slider_error: str | None = None
+    try:
+        _set_gnome_slider_brightness(percent)
+    except BrightnessError as error:
+        slider_error = str(error)
+
+    try:
+        _set_mutter_brightness(percent)
+    except BrightnessError as error:
+        detail = (
+            f"GNOME slider failed: {slider_error}. "
+            if slider_error is not None
+            else "GNOME slider changed, but "
+        )
+        raise BrightnessError(
+            f"{detail}Mutter backlight failed: {error}"
+        ) from error
 
 
 def set_brightness(

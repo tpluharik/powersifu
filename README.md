@@ -26,10 +26,10 @@ PowerSifu targets Ubuntu and Debian desktops using
 
 ## Install
 
-Download or build `powersifu_0.3.2_all.deb`, then install it with:
+Download or build `powersifu_0.3.3_all.deb`, then install it with:
 
 ```bash
-sudo apt install ./dist/powersifu_0.3.2_all.deb
+sudo apt install ./dist/powersifu_0.3.3_all.deb
 ```
 
 Launch **PowerSifu** from the application menu. The package also starts it in the tray on future
@@ -66,10 +66,10 @@ control startup. **Apply current source rule now** immediately evaluates the sav
 
 Open the **Brightness** tab, enable profile brightness, and choose a percentage for Power
 Saver, Balanced, and Performance. The setting is applied when a profile activates and when
-you save the configuration. On GNOME, PowerSifu uses the desktop session first so the physical
-backlight and the Quick Settings brightness slider remain synchronized. Other desktops use
-`brightnessctl` as a safe, unprivileged fallback. The feature remains off by default, and external
-monitors may require their own controls.
+you save the configuration. On GNOME, PowerSifu changes the desktop's own global brightness
+slider, keeping both the visible Quick Settings control and physical backlight synchronized.
+Mutter and `brightnessctl` remain safe, unprivileged fallbacks. The feature remains off by default,
+and external monitors may require their own controls.
 
 The active profile is marked in the Brightness tab. **Apply now** beside any profile previews that
 percentage immediately, making it easy to verify the display response before saving.
@@ -123,7 +123,7 @@ digest must also match GitHub's release metadata.
 Install development dependencies on Ubuntu/Debian:
 
 ```bash
-sudo apt install python3-gi gir1.2-gtk-3.0 \
+sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-atspi-2.0 \
   gir1.2-ayatanaappindicator3-0.1 power-profiles-daemon brightnessctl pkexec apt dpkg-dev
 ```
 

@@ -2,6 +2,12 @@
 
 All notable changes to PowerSifu are documented here.
 
+## 0.3.3 — 2026-09-23
+
+- Changed GNOME's global Quick Settings brightness slider directly through the desktop session.
+- Kept the main slider, per-display slider, and physical backlight synchronized.
+- Retained Mutter and `brightnessctl` fallbacks for unsupported desktop environments.
+
 ## 0.3.2 — 2026-09-23
 
 - Changed GNOME brightness through the desktop session before using `brightnessctl`.

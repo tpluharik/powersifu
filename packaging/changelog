@@ -1,3 +1,11 @@
+powersifu (0.3.3) unstable; urgency=medium
+
+  * Drive GNOME's global Quick Settings brightness slider directly.
+  * Keep the global slider, per-display slider, and backlight synchronized.
+  * Retain Mutter and brightnessctl fallback paths.
+
+ -- Tomas Pluharik <noreply@github.com>  Wed, 23 Sep 2026 00:00:00 +0200
+
 powersifu (0.3.2) unstable; urgency=medium
 
   * Prefer GNOME's session brightness service to keep Quick Settings synchronized.
