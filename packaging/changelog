@@ -1,3 +1,10 @@
+powersifu (0.3.1) unstable; urgency=medium
+
+  * Mark the active profile in the brightness settings.
+  * Add immediate per-profile brightness preview buttons and feedback.
+
+ -- Tomas Pluharik <noreply@github.com>  Wed, 23 Sep 2026 00:00:00 +0200
+
 powersifu (0.3.0) unstable; urgency=medium
 
   * Add authenticated in-app installation of official Debian updates.

@@ -11,6 +11,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gio, GLib, GObject, Gtk  # noqa: E402
 
 from . import __version__
+from .brightness import BrightnessError, set_brightness
 from .config import PROFILE_NAMES, ConfigStore, sync_autostart
 from .engine import AutomationEngine
 from .processes import validate_process_name
@@ -164,6 +165,7 @@ class SettingsWindow(Gtk.ApplicationWindow):
         super().__init__(application=application, title="PowerSifu")
         self.store = store
         self.engine = engine
+        self._active_profile = "unknown"
         self._available_update: UpdateInfo | None = None
         self._update_uri: str | None = None
         self.set_default_size(800, 600)
@@ -239,6 +241,11 @@ class SettingsWindow(Gtk.ApplicationWindow):
             False,
             0,
         )
+        self.brightness_profile_status = _label(
+            "Current profile: Unknown. Use Apply now to preview any configured value."
+        )
+        self.brightness_profile_status.get_style_context().add_class("dim-label")
+        page.pack_start(self.brightness_profile_status, False, False, 0)
 
         frame = Gtk.Frame(label=" Profile brightness ")
         grid = Gtk.Grid(column_spacing=18, row_spacing=12, margin=14)
@@ -249,21 +256,32 @@ class SettingsWindow(Gtk.ApplicationWindow):
         grid.attach(self.brightness_enabled, 0, 0, 3, 1)
 
         self.brightness_values: dict[str, Gtk.SpinButton] = {}
+        self.brightness_labels: dict[str, Gtk.Label] = {}
+        self.brightness_apply_buttons: dict[str, Gtk.Button] = {}
         for row, profile in enumerate(PROFILE_NAMES, start=1):
-            grid.attach(_label(PROFILE_LABELS[profile]), 0, row, 1, 1)
+            profile_label = _label(PROFILE_LABELS[profile])
+            grid.attach(profile_label, 0, row, 1, 1)
             value = Gtk.SpinButton.new_with_range(1, 100, 1)
             value.set_numeric(True)
             value.set_tooltip_text("Brightness percentage for this power profile")
             grid.attach(value, 1, row, 1, 1)
             grid.attach(Gtk.Label(label="%"), 2, row, 1, 1)
+            apply_button = Gtk.Button.new_with_label("Apply now")
+            apply_button.set_tooltip_text(
+                "Preview this brightness immediately without changing the active power profile"
+            )
+            apply_button.connect("clicked", self._apply_brightness_preview, profile)
+            grid.attach(apply_button, 3, row, 1, 1)
             self.brightness_values[profile] = value
+            self.brightness_labels[profile] = profile_label
+            self.brightness_apply_buttons[profile] = apply_button
 
         hint = _label(
             "PowerSifu uses the desktop session or brightnessctl and never asks for root access. "
             "External monitors may require their own display controls."
         )
         hint.get_style_context().add_class("dim-label")
-        grid.attach(hint, 0, 4, 3, 1)
+        grid.attach(hint, 0, 4, 4, 1)
         frame.add(grid)
         page.pack_start(frame, False, False, 0)
         self.notebook.append_page(page, Gtk.Label(label="Brightness"))
@@ -410,8 +428,19 @@ class SettingsWindow(Gtk.ApplicationWindow):
             )
 
     def update_status(self, profile: str, on_ac: bool) -> None:
+        self._active_profile = profile
         self.profile_state.set_text(PROFILE_LABELS.get(profile, profile))
         self.source_state.set_text("AC power" if on_ac else "Battery")
+        for name, label in self.brightness_labels.items():
+            suffix = " (active)" if name == profile else ""
+            label.set_text(f"{PROFILE_LABELS[name]}{suffix}")
+        if profile in self.brightness_values:
+            percent = self.brightness_values[profile].get_value_as_int()
+            self.brightness_profile_status.set_text(
+                f"Current profile: {PROFILE_LABELS[profile]} — configured brightness {percent}%."
+            )
+        else:
+            self.brightness_profile_status.set_text("Current profile: Unknown")
 
     def _save(self, _button: Gtk.Button) -> None:
         config = self.store.data
@@ -464,6 +493,28 @@ class SettingsWindow(Gtk.ApplicationWindow):
         enabled = button.get_active()
         for value in self.brightness_values.values():
             value.set_sensitive(enabled)
+        for apply_button in self.brightness_apply_buttons.values():
+            apply_button.set_sensitive(enabled)
+
+    def _apply_brightness_preview(self, _button: Gtk.Button, profile: str) -> None:
+        percent = self.brightness_values[profile].get_value_as_int()
+        try:
+            set_brightness(percent)
+        except (BrightnessError, ValueError) as error:
+            self._message(
+                "Could not change display brightness",
+                str(error),
+                Gtk.MessageType.ERROR,
+            )
+            return
+        active_note = (
+            " This is the active profile."
+            if profile == self._active_profile
+            else " Save the value for the next time this profile becomes active."
+        )
+        self.brightness_profile_status.set_text(
+            f"Applied {percent}% from {PROFILE_LABELS[profile]}.{active_note}"
+        )
 
     def _check_for_updates(self, _button: Gtk.Button) -> None:
         self._available_update = None

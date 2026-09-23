@@ -67,7 +67,7 @@ class FakeDownloadResponse:
 class UpdateTests(unittest.TestCase):
     def update_info(self):
         return UpdateInfo(
-            current_version="0.3.0",
+            current_version="0.3.1",
             latest_version="0.4.0",
             release_url="https://github.com/tpluharik/powersifu/releases/tag/v0.4.0",
             download_url=(
@@ -80,7 +80,7 @@ class UpdateTests(unittest.TestCase):
 
     def test_detects_new_debian_release(self):
         info = check_for_update(
-            "0.3.0",
+            "0.3.1",
             opener=opener_for(
                 {
                     "tag_name": "v0.4.0",
@@ -104,11 +104,11 @@ class UpdateTests(unittest.TestCase):
 
     def test_current_release_is_up_to_date(self):
         info = check_for_update(
-            "0.3.0",
+            "0.3.1",
             opener=opener_for(
                 {
-                    "tag_name": "v0.3.0",
-                    "html_url": "https://github.com/tpluharik/powersifu/releases/tag/v0.3.0",
+                    "tag_name": "v0.3.1",
+                    "html_url": "https://github.com/tpluharik/powersifu/releases/tag/v0.3.1",
                     "assets": [],
                 }
             ),

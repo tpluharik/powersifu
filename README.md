@@ -26,10 +26,10 @@ PowerSifu targets Ubuntu and Debian desktops using
 
 ## Install
 
-Download or build `powersifu_0.3.0_all.deb`, then install it with:
+Download or build `powersifu_0.3.1_all.deb`, then install it with:
 
 ```bash
-sudo apt install ./dist/powersifu_0.3.0_all.deb
+sudo apt install ./dist/powersifu_0.3.1_all.deb
 ```
 
 Launch **PowerSifu** from the application menu. The package also starts it in the tray on future
@@ -69,6 +69,9 @@ Saver, Balanced, and Performance. The setting is applied when a profile activate
 you save the configuration. PowerSifu first uses `brightnessctl`, then safely falls back to
 GNOME's per-user display service when direct backlight access is restricted. The feature remains
 off by default, and external monitors may require their own controls.
+
+The active profile is marked in the Brightness tab. **Apply now** beside any profile previews that
+percentage immediately, making it easy to verify the display response before saving.
 
 ### Application rules
 

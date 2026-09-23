@@ -26,6 +26,11 @@
     <binary>powersifu</binary>
   </provides>
   <releases>
+    <release version="0.3.1" date="2026-09-23">
+      <description>
+        <p>Show the active profile and preview profile brightness immediately.</p>
+      </description>
+    </release>
     <release version="0.3.0" date="2026-09-23">
       <description>
         <p>Install verified official updates from the app with system authentication.</p>

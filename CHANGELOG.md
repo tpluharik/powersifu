@@ -2,6 +2,12 @@
 
 All notable changes to PowerSifu are documented here.
 
+## 0.3.1 — 2026-09-23
+
+- Marked the currently active power profile in the Brightness tab.
+- Added an **Apply now** button for every profile to preview brightness immediately.
+- Added clear feedback showing which profile value was applied.
+
 ## 0.3.0 — 2026-09-23
 
 - Added authenticated installation of official updates directly from the About page.
