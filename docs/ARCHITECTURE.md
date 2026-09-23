@@ -7,6 +7,8 @@ no privileged daemon and no network service.
 
 - `config.py` owns the versioned JSON configuration and XDG autostart override.
 - `power.py` reads Linux power-supply state and calls `powerprofilesctl`.
+- `brightness.py` validates percentages and calls `brightnessctl`.
+- `updates.py` performs an explicit, bounded GitHub Releases API check.
 - `scheduler.py` matches enabled recurring weekly schedules once per minute.
 - `processes.py` performs exact-name, same-user process discovery and graceful termination.
 - `engine.py` coordinates power-source changes, external profile changes, schedules, and rules.
@@ -20,11 +22,13 @@ The configuration is stored at `${XDG_CONFIG_HOME:-~/.config}/powersifu/config.j
 
 Every five seconds the engine checks the AC adapter and active profile. A source change can apply
 the configured AC or battery profile. A profile change—whether caused by PowerSifu, the desktop,
-or another tool—evaluates application rules. Schedules are checked in the same tick and guarded
-against duplicate execution within a minute.
+or another tool—applies configured brightness and evaluates application rules. Schedules are
+checked in the same tick and guarded against duplicate execution within a minute.
 
 ## Trust boundary
 
 PowerSifu runs entirely as the logged-in user. The existing power-profiles system service owns
-hardware changes. Process rules cannot contain arguments, paths, regular expressions, or shell
-syntax, which keeps their effect narrow and reviewable.
+profile changes. Brightness is delegated to `brightnessctl`. Process rules cannot contain
+arguments, paths, regular expressions, or shell syntax, which keeps their effect narrow and
+reviewable. Update checks are user-initiated, response-size limited, and accept only HTTPS URLs
+on GitHub-owned hosts. PowerSifu never installs an update automatically.

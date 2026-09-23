@@ -8,8 +8,8 @@
   <description>
     <p>
       PowerSifu is a small Linux tray utility for switching power profiles when
-      the charger changes, applying recurring schedules, and stopping selected
-      applications when a configured profile becomes active.
+      the charger changes, applying per-profile screen brightness and recurring
+      schedules, checking for updates, and stopping selected applications.
     </p>
     <p>
       Application rules use exact process-name matching, target only processes
@@ -26,6 +26,11 @@
     <binary>powersifu</binary>
   </provides>
   <releases>
+    <release version="0.2.0" date="2026-09-23">
+      <description>
+        <p>Adds profile-aware display brightness and an opt-in update checker.</p>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-09-23">
       <description>
         <p>Initial release with tray controls, source switching, schedules, and application rules.</p>

@@ -24,6 +24,27 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config["automation"]["battery_profile"], "power-saver")
         self.assertEqual(config["automation"]["poll_seconds"], 2)
 
+    def test_brightness_values_are_migrated_and_clamped(self):
+        config = sanitize_config(
+            {
+                "version": 1,
+                "brightness": {
+                    "enabled": True,
+                    "profiles": {
+                        "power-saver": -10,
+                        "balanced": 55,
+                        "performance": 500,
+                    },
+                },
+            }
+        )
+        self.assertEqual(config["version"], 2)
+        self.assertTrue(config["brightness"]["enabled"])
+        self.assertEqual(
+            config["brightness"]["profiles"],
+            {"power-saver": 1, "balanced": 55, "performance": 100},
+        )
+
     def test_store_round_trip_is_private_and_valid_json(self):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "config.json"

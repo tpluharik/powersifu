@@ -25,6 +25,26 @@ class EngineTests(unittest.TestCase):
         engine.tick(force_source=True)
         set_profile.assert_called_once_with("power-saver")
 
+    @patch("powersifu.engine.set_brightness")
+    def test_profile_brightness_is_applied(self, set_brightness):
+        self.store.data["brightness"]["enabled"] = True
+        self.store.data["brightness"]["profiles"]["power-saver"] = 35
+        engine = AutomationEngine(self.store)
+        engine._apply_brightness("power-saver")
+        set_brightness.assert_called_once_with(35)
+
+    @patch("powersifu.engine.set_brightness", side_effect=ValueError("bad brightness"))
+    def test_brightness_failure_notifies_only_once(self, _set_brightness):
+        self.store.data["brightness"]["enabled"] = True
+        notifications = []
+        engine = AutomationEngine(
+            self.store, notify=lambda title, body: notifications.append((title, body))
+        )
+        engine._apply_brightness("balanced")
+        engine._apply_brightness("balanced")
+        self.assertEqual(len(notifications), 1)
+        self.assertEqual(notifications[0][0], "Could not change display brightness")
+
     @patch("powersifu.engine.stop_application", return_value=[99])
     def test_profile_rules_are_applied(self, stop_application):
         self.store.data["application_rules"] = [

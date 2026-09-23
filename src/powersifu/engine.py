@@ -1,10 +1,11 @@
-"""Power source, schedule, and application-rule automation."""
+"""Power source, schedule, brightness, and application-rule automation."""
 
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Callable
 
+from .brightness import BrightnessError, set_brightness
 from .config import ConfigStore
 from .power import PowerProfileError, get_active_profile, on_ac_power, set_profile
 from .processes import stop_application
@@ -29,6 +30,7 @@ class AutomationEngine:
         self.last_profile: str | None = None
         self.fired_schedules: dict[str, datetime] = {}
         self.last_error: str | None = None
+        self.last_brightness_error: str | None = None
 
     def tick(self, force_source: bool = False, now: datetime | None = None) -> bool:
         now = now or datetime.now()
@@ -45,8 +47,12 @@ class AutomationEngine:
                     active = target
 
             if active != self.last_profile:
-                self._run_application_rules(active)
+                self._run_profile_actions(active)
                 self.last_profile = active
+            elif force_source:
+                # Saving settings should apply a changed brightness value immediately,
+                # without re-running application stop rules.
+                self._apply_brightness(active)
 
             for index, schedule in enumerate(self.store.data["schedules"]):
                 key = schedule_key(index, now)
@@ -73,12 +79,33 @@ class AutomationEngine:
     def apply_profile(self, profile: str, reason: str) -> None:
         set_profile(profile)
         self.last_profile = profile
-        self._run_application_rules(profile)
+        self._run_profile_actions(profile)
         self.notify("Power profile changed", f"{profile} — {reason}")
         self.state_changed(profile, on_ac_power())
 
     def apply_current_source(self) -> None:
         self.tick(force_source=True)
+
+    def _run_profile_actions(self, profile: str) -> None:
+        self._apply_brightness(profile)
+        self._run_application_rules(profile)
+
+    def _apply_brightness(self, profile: str) -> None:
+        settings = self.store.data["brightness"]
+        if not settings["enabled"]:
+            self.last_brightness_error = None
+            return
+
+        percent = settings["profiles"][profile]
+        try:
+            set_brightness(percent)
+        except (BrightnessError, ValueError) as error:
+            message = str(error)
+            if message != self.last_brightness_error:
+                self.notify("Could not change display brightness", message)
+            self.last_brightness_error = message
+        else:
+            self.last_brightness_error = None
 
     def _run_application_rules(self, profile: str) -> None:
         for rule in self.store.data["application_rules"]:

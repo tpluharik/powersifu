@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
+import threading
 from typing import Any
 
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GObject, Gtk  # noqa: E402
+from gi.repository import Gio, GLib, GObject, Gtk  # noqa: E402
 
+from . import __version__
 from .config import PROFILE_NAMES, ConfigStore, sync_autostart
 from .engine import AutomationEngine
 from .processes import validate_process_name
 from .scheduler import DAY_NAMES, format_days
+from .updates import UpdateCheckError, UpdateInfo, check_for_update
 
 
 PROFILE_LABELS = {
@@ -154,7 +157,8 @@ class SettingsWindow(Gtk.ApplicationWindow):
         super().__init__(application=application, title="PowerSifu")
         self.store = store
         self.engine = engine
-        self.set_default_size(760, 560)
+        self._update_uri: str | None = None
+        self.set_default_size(800, 600)
         self.set_icon_name("powersifu")
 
         header = Gtk.HeaderBar(title="PowerSifu", subtitle="Power profiles under control")
@@ -172,6 +176,7 @@ class SettingsWindow(Gtk.ApplicationWindow):
         root.pack_start(self.notebook, True, True, 0)
 
         self._build_general_page()
+        self._build_brightness_page()
         self._build_rules_page()
         self._build_schedules_page()
         self._build_about_page()
@@ -214,6 +219,46 @@ class SettingsWindow(Gtk.ApplicationWindow):
         startup_frame.add(startup_box)
         page.pack_start(startup_frame, False, False, 0)
         self.notebook.append_page(page, Gtk.Label(label="General"))
+
+    def _build_brightness_page(self) -> None:
+        page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14, margin=14)
+        page.pack_start(
+            _label(
+                "Optionally set the built-in display brightness whenever a power profile "
+                "becomes active. Saving settings applies the current profile immediately."
+            ),
+            False,
+            False,
+            0,
+        )
+
+        frame = Gtk.Frame(label=" Profile brightness ")
+        grid = Gtk.Grid(column_spacing=18, row_spacing=12, margin=14)
+        self.brightness_enabled = Gtk.CheckButton(
+            label="Change display brightness with the power profile"
+        )
+        self.brightness_enabled.connect("toggled", self._brightness_enabled_toggled)
+        grid.attach(self.brightness_enabled, 0, 0, 3, 1)
+
+        self.brightness_values: dict[str, Gtk.SpinButton] = {}
+        for row, profile in enumerate(PROFILE_NAMES, start=1):
+            grid.attach(_label(PROFILE_LABELS[profile]), 0, row, 1, 1)
+            value = Gtk.SpinButton.new_with_range(1, 100, 1)
+            value.set_numeric(True)
+            value.set_tooltip_text("Brightness percentage for this power profile")
+            grid.attach(value, 1, row, 1, 1)
+            grid.attach(Gtk.Label(label="%"), 2, row, 1, 1)
+            self.brightness_values[profile] = value
+
+        hint = _label(
+            "PowerSifu uses brightnessctl and never writes directly to privileged system files. "
+            "External monitors may require their own display controls."
+        )
+        hint.get_style_context().add_class("dim-label")
+        grid.attach(hint, 0, 4, 3, 1)
+        frame.add(grid)
+        page.pack_start(frame, False, False, 0)
+        self.notebook.append_page(page, Gtk.Label(label="Brightness"))
 
     def _build_rules_page(self) -> None:
         page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin=14)
@@ -292,11 +337,14 @@ class SettingsWindow(Gtk.ApplicationWindow):
         page.pack_start(title, False, False, 0)
         description = _label(
             "A small Linux tray utility for automatic power-profile switching, "
-            "weekly schedules, and profile-aware application rules."
+            "profile-aware brightness, weekly schedules, and application rules."
         )
         description.set_justify(Gtk.Justification.CENTER)
         description.set_xalign(0.5)
         page.pack_start(description, False, False, 0)
+        version = _label(f"Version {__version__}")
+        version.set_xalign(0.5)
+        page.pack_start(version, False, False, 0)
         safety = _label(
             "PowerSifu never executes user-provided shell commands. Application rules only "
             "match exact same-user process names, and critical desktop processes are protected."
@@ -304,6 +352,22 @@ class SettingsWindow(Gtk.ApplicationWindow):
         safety.set_justify(Gtk.Justification.CENTER)
         safety.set_xalign(0.5)
         page.pack_start(safety, False, False, 12)
+
+        self.update_status = _label("Updates are checked only when you request it.")
+        self.update_status.set_justify(Gtk.Justification.CENTER)
+        self.update_status.set_xalign(0.5)
+        page.pack_start(self.update_status, False, False, 0)
+        update_buttons = Gtk.Box(spacing=8)
+        update_buttons.set_halign(Gtk.Align.CENTER)
+        self.update_check_button = Gtk.Button.new_with_label("Check for updates")
+        self.update_check_button.connect("clicked", self._check_for_updates)
+        update_buttons.pack_start(self.update_check_button, False, False, 0)
+        self.update_open_button = Gtk.Button.new_with_label("Open release")
+        self.update_open_button.connect("clicked", self._open_update)
+        self.update_open_button.set_no_show_all(True)
+        self.update_open_button.hide()
+        update_buttons.pack_start(self.update_open_button, False, False, 0)
+        page.pack_start(update_buttons, False, False, 0)
         self.notebook.append_page(page, Gtk.Label(label="About"))
 
     def _load_from_config(self) -> None:
@@ -313,6 +377,11 @@ class SettingsWindow(Gtk.ApplicationWindow):
         self.ac_profile.set_active_id(automation["ac_profile"])
         self.battery_profile.set_active_id(automation["battery_profile"])
         self.start_at_login.set_active(config["start_at_login"])
+        brightness = config["brightness"]
+        self.brightness_enabled.set_active(brightness["enabled"])
+        for profile, value in self.brightness_values.items():
+            value.set_value(brightness["profiles"][profile])
+        self._brightness_enabled_toggled(self.brightness_enabled)
 
         self.rules_model.clear()
         for rule in config["application_rules"]:
@@ -346,6 +415,13 @@ class SettingsWindow(Gtk.ApplicationWindow):
                 "battery_profile": self.battery_profile.get_active_id(),
             }
         )
+        config["brightness"] = {
+            "enabled": self.brightness_enabled.get_active(),
+            "profiles": {
+                profile: value.get_value_as_int()
+                for profile, value in self.brightness_values.items()
+            },
+        }
         config["application_rules"] = [
             {"enabled": row[0], "process": row[1], "profile": row[2]}
             for row in self.rules_model
@@ -368,6 +444,60 @@ class SettingsWindow(Gtk.ApplicationWindow):
             self._message("Could not save settings", str(error), Gtk.MessageType.ERROR)
             return
         self._message("Settings saved", "PowerSifu is using the updated rules.", Gtk.MessageType.INFO)
+
+    def _brightness_enabled_toggled(self, button: Gtk.CheckButton) -> None:
+        enabled = button.get_active()
+        for value in self.brightness_values.values():
+            value.set_sensitive(enabled)
+
+    def _check_for_updates(self, _button: Gtk.Button) -> None:
+        self._update_uri = None
+        self.update_check_button.set_sensitive(False)
+        self.update_open_button.hide()
+        self.update_status.set_text("Checking the official GitHub release…")
+        worker = threading.Thread(target=self._check_for_updates_worker, daemon=True)
+        worker.start()
+
+    def _check_for_updates_worker(self) -> None:
+        try:
+            info = check_for_update(__version__)
+        except UpdateCheckError as error:
+            GLib.idle_add(self._finish_update_check, None, str(error))
+        else:
+            GLib.idle_add(self._finish_update_check, info, None)
+
+    def _finish_update_check(
+        self, info: UpdateInfo | None, error: str | None
+    ) -> bool:
+        self.update_check_button.set_sensitive(True)
+        if error is not None:
+            self.update_status.set_text(error)
+            return GLib.SOURCE_REMOVE
+        if info is None:
+            self.update_status.set_text("The update check returned no result.")
+            return GLib.SOURCE_REMOVE
+        if not info.available:
+            self.update_status.set_text(f"PowerSifu {__version__} is up to date.")
+            return GLib.SOURCE_REMOVE
+
+        self.update_status.set_text(
+            f"PowerSifu {info.latest_version} is available. Review it before installing."
+        )
+        self._update_uri = info.download_url or info.release_url
+        if info.download_url:
+            self.update_open_button.set_label(f"Download {info.latest_version} .deb")
+        else:
+            self.update_open_button.set_label(f"Open {info.latest_version} release")
+        self.update_open_button.show()
+        return GLib.SOURCE_REMOVE
+
+    def _open_update(self, _button: Gtk.Button) -> None:
+        if self._update_uri is None:
+            return
+        try:
+            Gio.AppInfo.launch_default_for_uri(self._update_uri, None)
+        except GLib.Error as error:
+            self._message("Could not open the update", str(error), Gtk.MessageType.ERROR)
 
     def _apply_source(self, _button: Gtk.Button) -> None:
         self._save(_button)

@@ -14,13 +14,21 @@ APP_ID = "io.github.tpluharik.PowerSifu"
 PROFILE_NAMES = ("power-saver", "balanced", "performance")
 
 DEFAULT_CONFIG: dict[str, Any] = {
-    "version": 1,
+    "version": 2,
     "start_at_login": True,
     "automation": {
         "enabled": True,
         "ac_profile": "balanced",
         "battery_profile": "power-saver",
         "poll_seconds": 5,
+    },
+    "brightness": {
+        "enabled": False,
+        "profiles": {
+            "power-saver": 40,
+            "balanced": 70,
+            "performance": 100,
+        },
     },
     "application_rules": [],
     "schedules": [],
@@ -49,11 +57,22 @@ def _merge_defaults(value: Any, default: Any) -> Any:
 
 def sanitize_config(value: Any) -> dict[str, Any]:
     config = _merge_defaults(value, DEFAULT_CONFIG)
+    config["version"] = DEFAULT_CONFIG["version"]
     automation = config["automation"]
     for key in ("ac_profile", "battery_profile"):
         if automation[key] not in PROFILE_NAMES:
             automation[key] = DEFAULT_CONFIG["automation"][key]
     automation["poll_seconds"] = min(max(int(automation["poll_seconds"]), 2), 60)
+
+    brightness = config["brightness"]
+    brightness["enabled"] = bool(brightness["enabled"])
+    for profile in PROFILE_NAMES:
+        default = DEFAULT_CONFIG["brightness"]["profiles"][profile]
+        try:
+            percent = int(brightness["profiles"][profile])
+        except (TypeError, ValueError):
+            percent = default
+        brightness["profiles"][profile] = min(max(percent, 1), 100)
 
     rules = []
     for rule in value.get("application_rules", []) if isinstance(value, dict) else []:
