@@ -48,3 +48,6 @@ or install packages.
 
 The package is written to `dist/`. The build uses a temporary staging directory and
 `dpkg-deb --root-owner-group`, so it does not require root privileges.
+
+See [RELEASE.md](RELEASE.md) for the versioning, validation, publication, and updater-verification
+checklist used for official releases.

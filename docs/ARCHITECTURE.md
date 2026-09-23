@@ -27,12 +27,16 @@ the configured AC or battery profile. A profile change—whether caused by Power
 or another tool—applies configured brightness and evaluates application rules. Schedules are
 checked in the same tick and guarded against duplicate execution within a minute.
 
+On GNOME, brightness application is deliberately two-part. AT-SPI updates the shell's global
+Quick Settings slider, while Mutter's session D-Bus service sets the physical built-in-display
+backlight. This keeps GNOME's global control, per-display control, and hardware value aligned.
+
 ## Trust boundary
 
 PowerSifu runs entirely as the logged-in user. The existing power-profiles system service owns
-profile changes. Brightness is delegated to the desktop session or `brightnessctl`. Process rules cannot contain
-arguments, paths, regular expressions, or shell syntax, which keeps their effect narrow and
-reviewable. Update checks and installs are user-initiated, size limited, and accept only HTTPS URLs
-on GitHub-owned hosts. Packages must match GitHub's size and SHA-256 metadata plus the expected
-Debian name, version, and architecture before a fixed `pkexec apt-get` invocation requests
+profile changes. Brightness is delegated to the desktop session or `brightnessctl`. Process rules
+cannot contain arguments, paths, regular expressions, or shell syntax, which keeps their effect
+narrow and reviewable. Update checks and installs are user-initiated, size limited, and accept only
+HTTPS URLs on GitHub-owned hosts. Packages must match GitHub's size and SHA-256 metadata plus the
+expected Debian name, version, and architecture before a fixed `pkexec apt-get` invocation requests
 system authentication.

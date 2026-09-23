@@ -1,5 +1,9 @@
 # PowerSifu
 
+[![Latest release](https://img.shields.io/github/v/release/tpluharik/powersifu)](https://github.com/tpluharik/powersifu/releases/latest)
+[![Build](https://github.com/tpluharik/powersifu/actions/workflows/build.yml/badge.svg)](https://github.com/tpluharik/powersifu/actions/workflows/build.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 ![PowerSifu lightning and power-button icon](assets/icons/hicolor/128x128/apps/powersifu.png)
 
 PowerSifu is a small Linux desktop utility that keeps power-profile policy in one place. It runs
@@ -13,7 +17,8 @@ PowerSifu targets Ubuntu and Debian desktops using
 ## Features
 
 - **AC/battery automation:** choose independent profiles for plugged-in and battery use.
-- **Profile brightness:** optionally assign a 1–100% screen brightness to each profile.
+- **Profile brightness:** assign a 1–100% screen brightness to each profile, with GNOME's
+  Quick Settings slider kept synchronized.
 - **Tray control:** view the current source/profile and switch profiles without opening settings.
 - **Recurring schedules:** choose a time, one or more weekdays, and a target profile.
 - **Application rules:** stop exact same-user process names when Power Saver, Balanced, or
@@ -26,10 +31,11 @@ PowerSifu targets Ubuntu and Debian desktops using
 
 ## Install
 
-Download or build `powersifu_0.3.3_all.deb`, then install it with:
+Download [PowerSifu 0.3.3 for Ubuntu/Debian](https://github.com/tpluharik/powersifu/releases/download/v0.3.3/powersifu_0.3.3_all.deb),
+then install it with:
 
 ```bash
-sudo apt install ./dist/powersifu_0.3.3_all.deb
+sudo apt install ./powersifu_0.3.3_all.deb
 ```
 
 Launch **PowerSifu** from the application menu. The package also starts it in the tray on future
@@ -47,6 +53,13 @@ sudo apt remove powersifu
 ```
 
 Your user configuration remains in `~/.config/powersifu/` unless you remove it separately.
+
+## Update
+
+Open **Settings → About → Check for updates**. When a newer official package is available,
+choose **Install update** and approve the operating-system authentication prompt. PowerSifu
+verifies the download before installation. Quit and reopen PowerSifu afterward so the running
+process loads the new version.
 
 ## Configure PowerSifu
 
@@ -137,7 +150,7 @@ python3 -m compileall -q src
 
 The resulting `.deb` is placed in `dist/`. The same test-and-build flow runs in GitHub Actions.
 See [development notes](docs/DEVELOPMENT.md) and the [architecture overview](docs/ARCHITECTURE.md)
-for implementation details.
+for implementation details. Maintainers can follow the [release checklist](docs/RELEASE.md).
 
 ## Troubleshooting
 
@@ -148,8 +161,13 @@ one by default; other GNOME installations may need `gnome-shell-extension-appind
 is available. Your distribution may display an authorization prompt for profile changes.
 
 **Brightness does not change:** PowerSifu shows the underlying error after saving. On GNOME it
-uses the session display service so the system slider follows the change. Other desktops should
-provide a working `brightnessctl` setup. External displays may require their own controls.
+updates both the global Quick Settings slider and Mutter's built-in-display backlight. Other
+desktops should provide a working `brightnessctl` setup. External displays may require their own
+controls.
+
+**The backlight changes but GNOME's slider does not:** confirm that PowerSifu 0.3.3 or newer is
+installed, then quit and reopen the tray application. The Debian package installs the required
+AT-SPI binding automatically.
 
 **An update fails:** confirm that GitHub is reachable and approve the system authentication
 prompt. PowerSifu verifies the package before requesting installation and reports package-manager
