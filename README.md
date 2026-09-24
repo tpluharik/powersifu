@@ -17,6 +17,8 @@ PowerSifu targets Ubuntu and Debian desktops using
 ## Features
 
 - **AC/battery automation:** choose independent profiles for plugged-in and battery use.
+- **Event-driven monitoring:** react immediately to source and profile changes without frequent
+  background polling.
 - **Profile brightness:** assign a 1–100% screen brightness to each profile, with GNOME's
   Quick Settings slider kept synchronized.
 - **Tray control:** view the current source/profile and switch profiles without opening settings.
@@ -31,11 +33,11 @@ PowerSifu targets Ubuntu and Debian desktops using
 
 ## Install
 
-Download [PowerSifu 0.3.4 for Ubuntu/Debian](https://github.com/tpluharik/powersifu/releases/download/v0.3.4/powersifu_0.3.4_all.deb),
+Download [PowerSifu 0.3.5 for Ubuntu/Debian](https://github.com/tpluharik/powersifu/releases/download/v0.3.5/powersifu_0.3.5_all.deb),
 then install it with:
 
 ```bash
-sudo apt install ./powersifu_0.3.4_all.deb
+sudo apt install ./powersifu_0.3.5_all.deb
 ```
 
 Launch **PowerSifu** from the application menu. The package also starts it in the tray on future
@@ -122,10 +124,11 @@ Settings are saved atomically with user-only permissions at:
 ${XDG_CONFIG_HOME:-~/.config}/powersifu/config.json
 ```
 
-PowerSifu checks power state every five seconds. It communicates directly with the installed
-`power-profiles-daemon` over its system service interface and applies optional display changes
-through the desktop session or `brightnessctl`; it does not install a privileged daemon or custom
-authorization policy. The About-page update checker contacts only
+PowerSifu listens for power-source and profile-change events through persistent system-service
+connections. A 60-second safety reconciliation covers missed or unavailable signals. Schedule
+checks run only on wall-clock minute boundaries and sleep completely when no schedule is enabled.
+PowerSifu applies optional display changes through the desktop session or `brightnessctl`; it does
+not install a privileged daemon or custom authorization policy. The About-page update checker contacts only
 the official GitHub Releases API after **Check for updates** is clicked. **Install update**
 downloads the official package, verifies its Debian identity and version, and requests
 authentication through the operating system before installation. The download's size and SHA-256
@@ -137,7 +140,7 @@ Install development dependencies on Ubuntu/Debian:
 
 ```bash
 sudo apt install python3-gi gir1.2-glib-2.0 gir1.2-gtk-3.0 gir1.2-atspi-2.0 \
-  gir1.2-ayatanaappindicator3-0.1 power-profiles-daemon brightnessctl pkexec apt dpkg-dev
+  gir1.2-ayatanaappindicator3-0.1 power-profiles-daemon upower brightnessctl pkexec apt dpkg-dev
 ```
 
 Run tests and build the package:

@@ -1,10 +1,10 @@
 Package: powersifu
-Version: 0.3.4
+Version: 0.3.5
 Section: utils
 Priority: optional
 Architecture: all
 Maintainer: Tomas Pluharik <noreply@github.com>
-Depends: python3 (>= 3.10), python3-gi, gir1.2-glib-2.0, gir1.2-gtk-3.0, gir1.2-atspi-2.0, gir1.2-ayatanaappindicator3-0.1, power-profiles-daemon, pkexec, apt, dpkg
+Depends: python3 (>= 3.10), python3-gi, gir1.2-glib-2.0, gir1.2-gtk-3.0, gir1.2-atspi-2.0, gir1.2-ayatanaappindicator3-0.1, power-profiles-daemon, upower, pkexec, apt, dpkg
 Recommends: gnome-shell-extension-appindicator, brightnessctl
 Homepage: https://github.com/tpluharik/powersifu
 Description: tray-based Linux power-profile automation

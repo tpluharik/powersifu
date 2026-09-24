@@ -1,3 +1,11 @@
+powersifu (0.3.5) unstable; urgency=medium
+
+  * Replace frequent polling with UPower and power-profile D-Bus events.
+  * Reuse persistent proxies with a 60-second recovery check.
+  * Run enabled schedules on a separate minute-aligned timer.
+
+ -- Tomas Pluharik <noreply@github.com>  Thu, 24 Sep 2026 00:00:00 +0200
+
 powersifu (0.3.4) unstable; urgency=medium
 
   * Use power-profiles-daemon's system D-Bus interface directly.

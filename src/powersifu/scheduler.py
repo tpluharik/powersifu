@@ -30,3 +30,11 @@ def schedule_matches(schedule: dict[str, Any], now: datetime) -> bool:
 
 def schedule_key(index: int, now: datetime) -> str:
     return f"{now:%Y-%m-%dT%H:%M}:{index}"
+
+
+def milliseconds_until_next_minute(now: datetime | None = None) -> int:
+    """Return a GLib-friendly delay aligned to the next wall-clock minute."""
+
+    now = now or datetime.now()
+    elapsed = now.second * 1_000 + now.microsecond // 1_000
+    return max(1, 60_000 - elapsed)

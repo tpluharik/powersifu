@@ -6,8 +6,8 @@ no privileged daemon and no network service.
 ## Components
 
 - `config.py` owns the versioned JSON configuration and XDG autostart override.
-- `power.py` reads Linux power-supply state and talks directly to power-profiles-daemon over its
-  system D-Bus interface, avoiding a short-lived helper process on every poll.
+- `power.py` keeps persistent system D-Bus proxies for power-profiles-daemon and UPower, consumes
+  property-change events, and provides a sysfs fallback for power-source detection.
 - `brightness.py` validates percentages, drives GNOME Shell's global slider through the desktop
   accessibility bus, and falls back to Mutter or `brightnessctl` when needed.
 - `updates.py` performs bounded GitHub release checks and downloads, validates Debian package
@@ -16,17 +16,22 @@ no privileged daemon and no network service.
 - `processes.py` performs exact-name, same-user process discovery and graceful termination.
 - `engine.py` coordinates power-source changes, external profile changes, schedules, and rules.
 - `ui.py` provides the GTK settings window and rule editors.
-- `app.py` owns the application lifecycle, notifications, timer, and tray menu.
+- `app.py` owns the application lifecycle, notifications, event subscriptions, safety timer,
+  schedule timer, and tray menu.
 
 The configuration is stored at `${XDG_CONFIG_HOME:-~/.config}/powersifu/config.json` with mode
 `0600`. Writes use a temporary file and atomic replacement.
 
 ## Event model
 
-Every five seconds the engine checks the AC adapter and active profile. A source change can apply
-the configured AC or battery profile. A profile change—whether caused by PowerSifu, the desktop,
-or another tool—applies configured brightness and evaluates application rules. Schedules are
-checked in the same tick and guarded against duplicate execution within a minute.
+UPower source changes and power-profiles-daemon profile changes arrive through cached D-Bus proxy
+signals. The relevant state is passed directly into the engine without an extra service query. A
+60-second fresh reconciliation provides recovery after a missed signal or service restart.
+
+A source change can apply the configured AC or battery profile. A profile change—whether caused by
+PowerSifu, the desktop, or another tool—applies configured brightness and evaluates application
+rules. Enabled schedules use a separate timer aligned to the next wall-clock minute and remain
+unscheduled when none are enabled. Duplicate execution within one minute is still prevented.
 
 On GNOME, brightness application is deliberately two-part. AT-SPI updates the shell's global
 Quick Settings slider, while Mutter's session D-Bus service sets the physical built-in-display

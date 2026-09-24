@@ -1,7 +1,12 @@
 import unittest
 from datetime import datetime
 
-from powersifu.scheduler import format_days, schedule_key, schedule_matches
+from powersifu.scheduler import (
+    format_days,
+    milliseconds_until_next_minute,
+    schedule_key,
+    schedule_matches,
+)
 
 
 class SchedulerTests(unittest.TestCase):
@@ -17,6 +22,11 @@ class SchedulerTests(unittest.TestCase):
         self.assertFalse(
             schedule_matches({"enabled": False, "time": "08:30", "days": [0]}, monday)
         )
+
+    def test_next_check_aligns_to_wall_clock_minute(self):
+        now = datetime(2026, 9, 24, 8, 30, 42, 250_000)
+
+        self.assertEqual(milliseconds_until_next_minute(now), 17_750)
 
 
 if __name__ == "__main__":

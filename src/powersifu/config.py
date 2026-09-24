@@ -14,13 +14,12 @@ APP_ID = "io.github.tpluharik.PowerSifu"
 PROFILE_NAMES = ("power-saver", "balanced", "performance")
 
 DEFAULT_CONFIG: dict[str, Any] = {
-    "version": 2,
+    "version": 3,
     "start_at_login": True,
     "automation": {
         "enabled": True,
         "ac_profile": "balanced",
         "battery_profile": "power-saver",
-        "poll_seconds": 5,
     },
     "brightness": {
         "enabled": False,
@@ -62,8 +61,6 @@ def sanitize_config(value: Any) -> dict[str, Any]:
     for key in ("ac_profile", "battery_profile"):
         if automation[key] not in PROFILE_NAMES:
             automation[key] = DEFAULT_CONFIG["automation"][key]
-    automation["poll_seconds"] = min(max(int(automation["poll_seconds"]), 2), 60)
-
     brightness = config["brightness"]
     brightness["enabled"] = bool(brightness["enabled"])
     for profile in PROFILE_NAMES:

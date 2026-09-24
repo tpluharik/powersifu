@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import threading
-from typing import Any
+from typing import Any, Callable
 
 import gi
 
@@ -161,10 +161,17 @@ class ScheduleDialog(Gtk.Dialog):
 
 
 class SettingsWindow(Gtk.ApplicationWindow):
-    def __init__(self, application: Gtk.Application, store: ConfigStore, engine: AutomationEngine) -> None:
+    def __init__(
+        self,
+        application: Gtk.Application,
+        store: ConfigStore,
+        engine: AutomationEngine,
+        schedules_changed: Callable[[], None] | None = None,
+    ) -> None:
         super().__init__(application=application, title="PowerSifu")
         self.store = store
         self.engine = engine
+        self._schedules_changed = schedules_changed or (lambda: None)
         self._active_profile = "unknown"
         self._available_update: UpdateInfo | None = None
         self._update_uri: str | None = None
@@ -476,7 +483,9 @@ class SettingsWindow(Gtk.ApplicationWindow):
         try:
             self.store.save()
             sync_autostart(config["start_at_login"])
+            self._schedules_changed()
             self.engine.apply_current_source()
+            self.engine.run_schedules()
         except (OSError, ValueError) as error:
             self._message("Could not save settings", str(error), Gtk.MessageType.ERROR)
             return

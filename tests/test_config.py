@@ -22,7 +22,7 @@ class ConfigTests(unittest.TestCase):
         )
         self.assertEqual(config["automation"]["ac_profile"], "balanced")
         self.assertEqual(config["automation"]["battery_profile"], "power-saver")
-        self.assertEqual(config["automation"]["poll_seconds"], 2)
+        self.assertNotIn("poll_seconds", config["automation"])
 
     def test_brightness_values_are_migrated_and_clamped(self):
         config = sanitize_config(
@@ -38,7 +38,7 @@ class ConfigTests(unittest.TestCase):
                 },
             }
         )
-        self.assertEqual(config["version"], 2)
+        self.assertEqual(config["version"], 3)
         self.assertTrue(config["brightness"]["enabled"])
         self.assertEqual(
             config["brightness"]["profiles"],

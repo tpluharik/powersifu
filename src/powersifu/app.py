@@ -15,8 +15,12 @@ from gi.repository import Gio, GLib, Gtk  # noqa: E402
 from . import __version__
 from .config import APP_ID, PROFILE_NAMES, ConfigStore
 from .engine import AutomationEngine
-from .power import PowerProfileError, get_active_profile, on_ac_power
+from .power import PowerMonitor, PowerProfileError
+from .scheduler import milliseconds_until_next_minute
 from .ui import PROFILE_LABELS, SettingsWindow
+
+
+FALLBACK_RECONCILE_SECONDS = 60
 
 
 class PowerSifuApplication(Gtk.Application):
@@ -28,7 +32,9 @@ class PowerSifuApplication(Gtk.Application):
         self.indicator: AppIndicator3.Indicator | None = None
         self.current_profile = "unknown"
         self.current_on_ac = False
-        self._timeout_id = 0
+        self.power_monitor = PowerMonitor()
+        self._fallback_timeout_id = 0
+        self._schedule_timeout_id = 0
 
     def do_startup(self) -> None:
         Gtk.Application.do_startup(self)
@@ -38,10 +44,20 @@ class PowerSifuApplication(Gtk.Application):
             self.store,
             notify=self._notify,
             state_changed=self._state_changed,
+            power=self.power_monitor,
         )
         self._create_indicator()
-        poll_seconds = self.store.data["automation"]["poll_seconds"]
-        self._timeout_id = GLib.timeout_add_seconds(poll_seconds, self._tick)
+        warnings = self.power_monitor.start(
+            self._profile_changed,
+            self._source_changed,
+        )
+        self._fallback_timeout_id = GLib.timeout_add_seconds(
+            FALLBACK_RECONCILE_SECONDS,
+            self._fallback_tick,
+        )
+        self.refresh_schedule_timer()
+        if warnings:
+            GLib.idle_add(self._monitoring_warning, warnings)
         GLib.idle_add(self._initial_tick)
 
     def do_command_line(self, command_line: Gio.ApplicationCommandLine) -> int:
@@ -57,16 +73,25 @@ class PowerSifuApplication(Gtk.Application):
         if self.window is None:
             if self.engine is None:
                 return
-            self.window = SettingsWindow(self, self.store, self.engine)
+            self.window = SettingsWindow(
+                self,
+                self.store,
+                self.engine,
+                schedules_changed=self.refresh_schedule_timer,
+            )
             self.window.connect("delete-event", self._hide_window)
         self.window.update_status(self.current_profile, self.current_on_ac)
         self.window.show_all()
         self.window.present()
 
     def do_shutdown(self) -> None:
-        if self._timeout_id:
-            GLib.source_remove(self._timeout_id)
-            self._timeout_id = 0
+        if self._fallback_timeout_id:
+            GLib.source_remove(self._fallback_timeout_id)
+            self._fallback_timeout_id = 0
+        if self._schedule_timeout_id:
+            GLib.source_remove(self._schedule_timeout_id)
+            self._schedule_timeout_id = 0
+        self.power_monitor.close()
         Gtk.Application.do_shutdown(self)
 
     def _hide_window(self, window: Gtk.Window, _event: object) -> bool:
@@ -75,13 +100,50 @@ class PowerSifuApplication(Gtk.Application):
 
     def _initial_tick(self) -> bool:
         if self.engine is not None:
-            self.engine.tick(force_source=True)
+            self.engine.tick(force_source=True, refresh=True)
+            self.engine.run_schedules()
         return GLib.SOURCE_REMOVE
 
-    def _tick(self) -> bool:
+    def _fallback_tick(self) -> bool:
         if self.engine is not None:
-            self.engine.tick()
+            self.engine.tick(refresh=True)
         return GLib.SOURCE_CONTINUE
+
+    def _profile_changed(self, profile: str) -> None:
+        if self.engine is not None:
+            self.engine.tick(active_profile=profile)
+
+    def _source_changed(self, on_ac: bool) -> None:
+        if self.engine is not None:
+            self.engine.tick(force_source=True, on_ac_state=on_ac)
+
+    def refresh_schedule_timer(self) -> None:
+        if self._schedule_timeout_id:
+            GLib.source_remove(self._schedule_timeout_id)
+            self._schedule_timeout_id = 0
+        if not any(
+            schedule.get("enabled", True)
+            for schedule in self.store.data["schedules"]
+        ):
+            return
+        self._schedule_timeout_id = GLib.timeout_add(
+            milliseconds_until_next_minute(),
+            self._schedule_tick,
+        )
+
+    def _schedule_tick(self) -> bool:
+        self._schedule_timeout_id = 0
+        if self.engine is not None:
+            self.engine.run_schedules()
+        self.refresh_schedule_timer()
+        return GLib.SOURCE_REMOVE
+
+    def _monitoring_warning(self, warnings: list[str]) -> bool:
+        self._notify(
+            "Power monitoring is using safety checks",
+            "; ".join(warnings),
+        )
+        return GLib.SOURCE_REMOVE
 
     def _state_changed(self, profile: str, on_ac: bool) -> None:
         changed = profile != self.current_profile or on_ac != self.current_on_ac

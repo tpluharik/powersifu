@@ -26,6 +26,11 @@
     <binary>powersifu</binary>
   </provides>
   <releases>
+    <release version="0.3.5" date="2026-09-24">
+      <description>
+        <p>Reduce idle wakeups with event-driven monitoring and minute-aligned schedules.</p>
+      </description>
+    </release>
     <release version="0.3.4" date="2026-09-24">
       <description>
         <p>Use the power-profile service directly to avoid powerprofilesctl crashes.</p>

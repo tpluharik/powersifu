@@ -7,6 +7,7 @@
 - AT-SPI introspection bindings for GNOME slider synchronization
 - Ayatana AppIndicator introspection bindings
 - `power-profiles-daemon`
+- UPower for event-driven charger state changes
 - `brightnessctl` for optional brightness automation
 - `pkexec`, `apt-get`, and `dpkg-deb` for authenticated in-app updates
 - `dpkg-deb` for packaging
@@ -15,7 +16,7 @@ On Ubuntu or Debian:
 
 ```bash
 sudo apt install python3-gi gir1.2-glib-2.0 gir1.2-gtk-3.0 gir1.2-atspi-2.0 \
-  gir1.2-ayatanaappindicator3-0.1 power-profiles-daemon brightnessctl \
+  gir1.2-ayatanaappindicator3-0.1 power-profiles-daemon upower brightnessctl \
   pkexec apt dpkg-dev
 ```
 

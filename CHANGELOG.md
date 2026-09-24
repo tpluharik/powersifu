@@ -2,6 +2,13 @@
 
 All notable changes to PowerSifu are documented here.
 
+## 0.3.5 — 2026-09-24
+
+- Replaced five-second polling with UPower and power-profile property-change events.
+- Reused persistent D-Bus proxies and retained a 60-second recovery check.
+- Moved schedules to a minute-aligned timer that sleeps when no schedule is enabled.
+- Added regression coverage for proxy reuse, event de-duplication, and schedule timing.
+
 ## 0.3.4 — 2026-09-24
 
 - Switched profile reads and writes to power-profiles-daemon's system D-Bus interface.
