@@ -6,7 +6,8 @@ no privileged daemon and no network service.
 ## Components
 
 - `config.py` owns the versioned JSON configuration and XDG autostart override.
-- `power.py` reads Linux power-supply state and calls `powerprofilesctl`.
+- `power.py` reads Linux power-supply state and talks directly to power-profiles-daemon over its
+  system D-Bus interface, avoiding a short-lived helper process on every poll.
 - `brightness.py` validates percentages, drives GNOME Shell's global slider through the desktop
   accessibility bus, and falls back to Mutter or `brightnessctl` when needed.
 - `updates.py` performs bounded GitHub release checks and downloads, validates Debian package

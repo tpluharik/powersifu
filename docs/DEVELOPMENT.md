@@ -3,7 +3,7 @@
 ## Requirements
 
 - Python 3.10 or newer
-- PyGObject and GTK 3
+- PyGObject, GLib/Gio, and GTK 3
 - AT-SPI introspection bindings for GNOME slider synchronization
 - Ayatana AppIndicator introspection bindings
 - `power-profiles-daemon`
@@ -14,7 +14,7 @@
 On Ubuntu or Debian:
 
 ```bash
-sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-atspi-2.0 \
+sudo apt install python3-gi gir1.2-glib-2.0 gir1.2-gtk-3.0 gir1.2-atspi-2.0 \
   gir1.2-ayatanaappindicator3-0.1 power-profiles-daemon brightnessctl \
   pkexec apt dpkg-dev
 ```

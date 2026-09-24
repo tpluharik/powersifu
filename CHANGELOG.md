@@ -2,6 +2,12 @@
 
 All notable changes to PowerSifu are documented here.
 
+## 0.3.4 — 2026-09-24
+
+- Switched profile reads and writes to power-profiles-daemon's system D-Bus interface.
+- Avoided repeated `powerprofilesctl` processes and their Python 3.14 shutdown crash.
+- Added regression tests for profile validation and direct service operations.
+
 ## 0.3.3 — 2026-09-23
 
 - Changed GNOME's global Quick Settings brightness slider directly through the desktop session.

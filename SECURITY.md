@@ -12,9 +12,9 @@ never sends a signal to its own process and never escalates privileges to stop a
 
 ## Power-profile changes
 
-Profile switching is delegated to the system's `power-profiles-daemon` through
-`powerprofilesctl`. Distribution policy controls whether an authentication prompt is required.
-PowerSifu does not install custom privilege rules.
+Profile switching is delegated directly to the system's `power-profiles-daemon` over its system
+D-Bus interface. Distribution policy controls whether an authentication prompt is required.
+PowerSifu does not install custom privilege rules or a privileged helper.
 
 ## Brightness control
 

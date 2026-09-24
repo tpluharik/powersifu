@@ -31,11 +31,11 @@ PowerSifu targets Ubuntu and Debian desktops using
 
 ## Install
 
-Download [PowerSifu 0.3.3 for Ubuntu/Debian](https://github.com/tpluharik/powersifu/releases/download/v0.3.3/powersifu_0.3.3_all.deb),
+Download [PowerSifu 0.3.4 for Ubuntu/Debian](https://github.com/tpluharik/powersifu/releases/download/v0.3.4/powersifu_0.3.4_all.deb),
 then install it with:
 
 ```bash
-sudo apt install ./powersifu_0.3.3_all.deb
+sudo apt install ./powersifu_0.3.4_all.deb
 ```
 
 Launch **PowerSifu** from the application menu. The package also starts it in the tray on future
@@ -122,10 +122,10 @@ Settings are saved atomically with user-only permissions at:
 ${XDG_CONFIG_HOME:-~/.config}/powersifu/config.json
 ```
 
-PowerSifu checks power state every five seconds. It delegates profile changes to the installed
-`power-profiles-daemon` and applies optional display changes through the desktop session or
-`brightnessctl`; it does not install a privileged daemon or custom authorization policy. The
-About-page update checker contacts only
+PowerSifu checks power state every five seconds. It communicates directly with the installed
+`power-profiles-daemon` over its system service interface and applies optional display changes
+through the desktop session or `brightnessctl`; it does not install a privileged daemon or custom
+authorization policy. The About-page update checker contacts only
 the official GitHub Releases API after **Check for updates** is clicked. **Install update**
 downloads the official package, verifies its Debian identity and version, and requests
 authentication through the operating system before installation. The download's size and SHA-256
@@ -136,7 +136,7 @@ digest must also match GitHub's release metadata.
 Install development dependencies on Ubuntu/Debian:
 
 ```bash
-sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-atspi-2.0 \
+sudo apt install python3-gi gir1.2-glib-2.0 gir1.2-gtk-3.0 gir1.2-atspi-2.0 \
   gir1.2-ayatanaappindicator3-0.1 power-profiles-daemon brightnessctl pkexec apt dpkg-dev
 ```
 
@@ -157,8 +157,9 @@ for implementation details. Maintainers can follow the [release checklist](docs/
 **The tray icon is missing:** verify that an AppIndicator implementation is enabled. Ubuntu ships
 one by default; other GNOME installations may need `gnome-shell-extension-appindicator`.
 
-**A profile does not change:** run `powerprofilesctl list` and confirm that the requested profile
-is available. Your distribution may display an authorization prompt for profile changes.
+**A profile does not change:** confirm that Power Mode is available in your desktop's system menu
+and that `power-profiles-daemon` is running. Your distribution may display an authorization prompt
+for profile changes.
 
 **Brightness does not change:** PowerSifu shows the underlying error after saving. On GNOME it
 updates both the global Quick Settings slider and Mutter's built-in-display backlight. Other

@@ -1,3 +1,11 @@
+powersifu (0.3.4) unstable; urgency=medium
+
+  * Use power-profiles-daemon's system D-Bus interface directly.
+  * Avoid the powerprofilesctl Python 3.14 shutdown crash.
+  * Add profile read and write regression coverage.
+
+ -- Tomas Pluharik <noreply@github.com>  Thu, 24 Sep 2026 00:00:00 +0200
+
 powersifu (0.3.3) unstable; urgency=medium
 
   * Drive GNOME's global Quick Settings brightness slider directly.
