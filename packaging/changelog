@@ -1,3 +1,11 @@
+powersifu (0.3.7) unstable; urgency=high
+
+  * Prefer GitHub's anonymous asset API to avoid release-download 504 errors.
+  * Keep the conventional browser download endpoint as a transport fallback.
+  * Restrict API asset URLs to the official PowerSifu repository.
+
+ -- Tomas Pluharik <noreply@github.com>  Sun, 08 Nov 2026 00:00:00 +0100
+
 powersifu (0.3.6) unstable; urgency=high
 
   * Secure in-app updates with signed manifests and root-owned staging.

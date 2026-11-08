@@ -50,7 +50,8 @@ and confirm its filename, version, size, and SHA-256 match the package.
 5. Publish the draft with repository release immutability enabled. Confirm GitHub marks the release
    immutable and reports the expected package size and SHA-256 digest.
 6. Use the previous PowerSifu release to check, download, authenticate, and install the new release
-   through the same updater path users will run.
+   through the same updater path users will run. Confirm that the updater selects each asset's
+   repository-scoped GitHub API URL and still succeeds when the browser URL returns an HTTP error.
 7. During a disposable-VM test, replace the user-cached package while the authorization prompt is
    open. The privileged helper must reject the replacement and leave the installed version unchanged.
 

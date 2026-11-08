@@ -10,7 +10,8 @@ no privileged daemon and no network service.
   property-change events, and provides a sysfs fallback for power-source detection.
 - `brightness.py` validates percentages, drives GNOME Shell's global slider through the desktop
   accessibility bus, and falls back to Mutter or `brightnessctl` when needed.
-- `updates.py` performs bounded GitHub release checks and downloads, authenticates a signed release
+- `updates.py` performs bounded GitHub release checks and downloads through the repository-scoped
+  anonymous asset API with a browser-route transport fallback, authenticates a signed release
   manifest, validates Debian package identity, and requests the fixed privileged helper.
 - `update_helper.py` securely stages untrusted update inputs, repeats every authenticity and
   identity check as root, rejects downgrades, and invokes the fixed package-manager command.

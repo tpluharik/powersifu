@@ -31,10 +31,12 @@ command from the user, or install privilege rules. Brightness automation is disa
 
 Update checks run only after the user clicks **Check for updates**. Responses and downloads are
 size-limited, redirects must remain on GitHub-owned HTTPS hosts, and all asset filenames must match
-the advertised version. Installation requires a canonical manifest signed by PowerSifu's Ed25519
-release key. The manifest binds the package name, version, architecture, byte count, and SHA-256
-digest. Before elevation, PowerSifu authenticates the manifest and uses `dpkg-deb` to verify the
-package name, version, and architecture.
+the advertised version. Downloads prefer GitHub's anonymous release-asset API and accept API paths
+only for numeric asset identifiers in the exact `tpluharik/powersifu` repository. The conventional
+release URL is retained as a transport-failure fallback. Installation requires a canonical manifest
+signed by PowerSifu's Ed25519 release key. The manifest binds the package name, version,
+architecture, byte count, and SHA-256 digest. Before elevation, PowerSifu authenticates the manifest
+and uses `dpkg-deb` to verify the package name, version, and architecture.
 
 Installation starts only after the user clicks **Install update**. PowerSifu invokes only the fixed,
 root-owned `powersifu-update-helper` through `pkexec`. The helper treats every supplied path as

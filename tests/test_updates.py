@@ -4,6 +4,8 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from urllib.error import HTTPError
+from urllib.parse import urlparse
 from unittest.mock import Mock
 
 from powersifu.updates import (
@@ -178,17 +180,20 @@ class UpdateTests(unittest.TestCase):
                     "assets": [
                         {
                             "name": package_name,
+                            "url": "https://api.github.com/repos/tpluharik/powersifu/releases/assets/101",
                             "browser_download_url": f"https://github.com/release/{package_name}",
                             "digest": "sha256:" + "a" * 64,
                             "size": 12345,
                         },
                         {
                             "name": manifest_name,
+                            "url": "https://api.github.com/repos/tpluharik/powersifu/releases/assets/102",
                             "browser_download_url": f"https://github.com/release/{manifest_name}",
                             "size": 250,
                         },
                         {
                             "name": signature_name,
+                            "url": "https://api.github.com/repos/tpluharik/powersifu/releases/assets/103",
                             "browser_download_url": f"https://github.com/release/{signature_name}",
                             "size": 64,
                         },
@@ -200,6 +205,36 @@ class UpdateTests(unittest.TestCase):
         self.assertTrue(info.installable)
         self.assertEqual(info.latest_version, "0.4.0")
         self.assertEqual(info.download_sha256, "a" * 64)
+        self.assertEqual(
+            info.download_url,
+            "https://api.github.com/repos/tpluharik/powersifu/releases/assets/101",
+        )
+        self.assertEqual(
+            info.download_fallback_url,
+            f"https://github.com/release/{package_name}",
+        )
+
+    def test_rejects_asset_api_url_for_another_repository(self):
+        with self.assertRaisesRegex(UpdateCheckError, "invalid asset API URL"):
+            check_for_update(
+                "0.3.6",
+                opener=opener_for(
+                    {
+                        "tag_name": "v0.4.0",
+                        "html_url": "https://github.com/tpluharik/powersifu/releases/tag/v0.4.0",
+                        "assets": [
+                            {
+                                "name": "powersifu_0.4.0_all.deb",
+                                "url": "https://api.github.com/repos/attacker/project/releases/assets/1",
+                                "browser_download_url": (
+                                    "https://github.com/release/powersifu_0.4.0_all.deb"
+                                ),
+                                "size": 100,
+                            }
+                        ],
+                    }
+                ),
+            )
 
     def test_current_release_is_up_to_date(self):
         info = check_for_update(
@@ -247,6 +282,121 @@ class UpdateTests(unittest.TestCase):
             self.assertTrue(update.manifest_path.is_file())
             self.assertTrue(update.signature_path.is_file())
             package_runner.assert_called_once()
+
+    def test_downloads_through_github_asset_api(self):
+        info, assets = self.signed_bundle()
+        package_name, manifest_name, signature_name = assets
+        asset_names = {
+            "101": package_name,
+            "102": manifest_name,
+            "103": signature_name,
+        }
+        info = UpdateInfo(
+            **{
+                **info.__dict__,
+                "download_url": (
+                    "https://api.github.com/repos/tpluharik/powersifu/releases/assets/101"
+                ),
+                "manifest_url": (
+                    "https://api.github.com/repos/tpluharik/powersifu/releases/assets/102"
+                ),
+                "signature_url": (
+                    "https://api.github.com/repos/tpluharik/powersifu/releases/assets/103"
+                ),
+            }
+        )
+        requested_hosts = []
+
+        def opener(request, timeout):
+            self.assertEqual(timeout, 30)
+            self.assertEqual(request.headers["Accept"], "application/octet-stream")
+            parsed = urlparse(request.full_url)
+            requested_hosts.append(parsed.hostname)
+            name = asset_names[Path(parsed.path).name]
+            return FakeDownloadResponse(
+                assets[name],
+                f"https://release-assets.githubusercontent.com/{name}",
+            )
+
+        package_runner = Mock(
+            return_value=subprocess.CompletedProcess(
+                [], 0, "Package: powersifu\nVersion: 0.4.0\nArchitecture: all\n", ""
+            )
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            update = download_update(
+                info,
+                destination_dir=Path(temporary),
+                opener=opener,
+                package_runner=package_runner,
+                public_key_path=self.public_key,
+            )
+            self.assertEqual(update.package_path.read_bytes(), b"debian-package")
+        self.assertEqual(requested_hosts, ["api.github.com"] * 3)
+
+    def test_browser_route_is_used_when_asset_api_transport_fails(self):
+        info, assets = self.signed_bundle()
+        package_name, manifest_name, signature_name = assets
+        api_names = {
+            "101": package_name,
+            "102": manifest_name,
+            "103": signature_name,
+        }
+        browser_urls = {
+            package_name: info.download_url,
+            manifest_name: info.manifest_url,
+            signature_name: info.signature_url,
+        }
+        info = UpdateInfo(
+            **{
+                **info.__dict__,
+                "download_url": (
+                    "https://api.github.com/repos/tpluharik/powersifu/releases/assets/101"
+                ),
+                "manifest_url": (
+                    "https://api.github.com/repos/tpluharik/powersifu/releases/assets/102"
+                ),
+                "signature_url": (
+                    "https://api.github.com/repos/tpluharik/powersifu/releases/assets/103"
+                ),
+                "download_fallback_url": browser_urls[package_name],
+                "manifest_fallback_url": browser_urls[manifest_name],
+                "signature_fallback_url": browser_urls[signature_name],
+            }
+        )
+        requested_hosts = []
+
+        def opener(request, timeout):
+            self.assertEqual(timeout, 30)
+            parsed = urlparse(request.full_url)
+            requested_hosts.append(parsed.hostname)
+            if parsed.hostname == "api.github.com":
+                raise HTTPError(request.full_url, 504, "Gateway Time-out", {}, None)
+            name = Path(parsed.path).name
+            self.assertNotIn(name, api_names)
+            return FakeDownloadResponse(
+                assets[name],
+                f"https://release-assets.githubusercontent.com/{name}",
+            )
+
+        package_runner = Mock(
+            return_value=subprocess.CompletedProcess(
+                [], 0, "Package: powersifu\nVersion: 0.4.0\nArchitecture: all\n", ""
+            )
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            update = download_update(
+                info,
+                destination_dir=Path(temporary),
+                opener=opener,
+                package_runner=package_runner,
+                public_key_path=self.public_key,
+            )
+            self.assertEqual(update.package_path.read_bytes(), b"debian-package")
+        self.assertEqual(
+            requested_hosts,
+            ["api.github.com", "github.com"] * 3,
+        )
 
     def test_rejects_wrong_package_metadata(self):
         info, _assets = self.signed_bundle()

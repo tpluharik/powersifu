@@ -26,6 +26,11 @@
     <binary>powersifu</binary>
   </provides>
   <releases>
+    <release version="0.3.7" date="2026-11-08">
+      <description>
+        <p>Use GitHub's release-asset API to avoid browser-route update failures.</p>
+      </description>
+    </release>
     <release version="0.3.6" date="2026-11-08">
       <description>
         <p>Harden updates with signed root-owned staging and extend desktop process protection.</p>

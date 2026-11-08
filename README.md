@@ -33,11 +33,11 @@ PowerSifu targets Ubuntu and Debian desktops using
 
 ## Install
 
-Download [PowerSifu 0.3.6 for Ubuntu/Debian](https://github.com/tpluharik/powersifu/releases/download/v0.3.6/powersifu_0.3.6_all.deb),
+Download [PowerSifu 0.3.7 for Ubuntu/Debian](https://github.com/tpluharik/powersifu/releases/tag/v0.3.7),
 then install it with:
 
 ```bash
-sudo apt install ./powersifu_0.3.6_all.deb
+sudo apt install ./powersifu_0.3.7_all.deb
 ```
 
 Launch **PowerSifu** from the application menu. The package also starts it in the tray on future
@@ -62,7 +62,8 @@ Open **Settings → About → Check for updates**. When a newer official package
 choose **Install update** and approve the operating-system authentication prompt. PowerSifu
 verifies the release signature and package again inside a protected root helper before installation.
 Quit and reopen PowerSifu afterward so the running process loads the new version. Unsigned releases
-can be opened in the browser but cannot be installed from the app.
+can be opened in the browser but cannot be installed from the app. Downloads use GitHub's anonymous
+release-asset API, with the conventional release URL retained as a transport fallback.
 
 ## Configure PowerSifu
 

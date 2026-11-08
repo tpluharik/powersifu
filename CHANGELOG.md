@@ -2,6 +2,13 @@
 
 All notable changes to PowerSifu are documented here.
 
+## 0.3.7 — 2026-11-08
+
+- Download release assets through GitHub's anonymous API endpoint to avoid browser-route 504s.
+- Retain the conventional GitHub release URL as a transport-failure fallback.
+- Validate API asset URLs against the exact PowerSifu repository and numeric asset identifiers.
+- Add regression coverage for API downloads, browser fallback, and cross-repository URL rejection.
+
 ## 0.3.6 — 2026-11-08
 
 - Closed the update time-of-check/time-of-use window with a fixed root-owned staging helper.

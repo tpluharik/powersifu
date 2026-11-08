@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import stat
 import subprocess
 import tempfile
@@ -27,10 +28,14 @@ UPDATE_HELPER_PATH = Path("/usr/libexec/powersifu/powersifu-update-helper")
 UPDATE_HELPER_INTERPRETER = "/usr/bin/python3"
 OPENSSL_PATH = "/usr/bin/openssl"
 DOWNLOAD_HOSTS = {
+    "api.github.com",
     "github.com",
     "objects.githubusercontent.com",
     "release-assets.githubusercontent.com",
 }
+ASSET_API_PATH = re.compile(
+    r"^/repos/tpluharik/powersifu/releases/assets/[1-9][0-9]*$"
+)
 
 
 class UpdateCheckError(RuntimeError):
@@ -49,6 +54,9 @@ class UpdateInfo:
     download_url: str | None
     manifest_url: str | None = None
     signature_url: str | None = None
+    download_fallback_url: str | None = None
+    manifest_fallback_url: str | None = None
+    signature_fallback_url: str | None = None
     download_sha256: str | None = None
     download_size: int | None = None
     manifest_size: int | None = None
@@ -105,13 +113,24 @@ def _asset_metadata(
     assets: Any,
     expected_name: str,
     max_size: int,
-) -> tuple[str | None, int | None, str | None]:
+) -> tuple[str | None, str | None, int | None, str | None]:
     if not isinstance(assets, list):
-        return None, None, None
+        return None, None, None, None
     for asset in assets:
         if not isinstance(asset, dict) or asset.get("name") != expected_name:
             continue
-        url = _trusted_url(asset.get("browser_download_url"), DOWNLOAD_HOSTS)
+        browser_url = _trusted_url(asset.get("browser_download_url"), {"github.com"})
+        api_url_value = asset.get("url")
+        api_url: str | None = None
+        if api_url_value:
+            api_url = _trusted_url(api_url_value, {"api.github.com"})
+            parsed_api_url = urlparse(api_url)
+            if (
+                not ASSET_API_PATH.fullmatch(parsed_api_url.path)
+                or parsed_api_url.query
+                or parsed_api_url.fragment
+            ):
+                raise UpdateCheckError("The release service returned an invalid asset API URL")
         try:
             size_value = int(asset.get("size"))
         except (TypeError, ValueError):
@@ -125,8 +144,8 @@ def _asset_metadata(
                 character in "0123456789abcdef" for character in candidate
             ):
                 digest = candidate
-        return url, size, digest
-    return None, None, None
+        return api_url or browser_url, browser_url if api_url else None, size, digest
+    return None, None, None, None
 
 
 def check_for_update(current_version: str, opener: Any = urlopen) -> UpdateInfo:
@@ -163,13 +182,13 @@ def check_for_update(current_version: str, opener: Any = urlopen) -> UpdateInfo:
     manifest_name = f"{package_name}.manifest.json"
     signature_name = f"{manifest_name}.sig"
     assets = data.get("assets", [])
-    download_url, download_size, download_sha256 = _asset_metadata(
+    download_url, download_fallback_url, download_size, download_sha256 = _asset_metadata(
         assets, package_name, MAX_PACKAGE_BYTES
     )
-    manifest_url, manifest_size, _manifest_digest = _asset_metadata(
+    manifest_url, manifest_fallback_url, manifest_size, _manifest_digest = _asset_metadata(
         assets, manifest_name, MAX_MANIFEST_BYTES
     )
-    signature_url, signature_size, _signature_digest = _asset_metadata(
+    signature_url, signature_fallback_url, signature_size, _signature_digest = _asset_metadata(
         assets, signature_name, MAX_SIGNATURE_BYTES
     )
 
@@ -180,6 +199,9 @@ def check_for_update(current_version: str, opener: Any = urlopen) -> UpdateInfo:
         download_url=download_url,
         manifest_url=manifest_url,
         signature_url=signature_url,
+        download_fallback_url=download_fallback_url,
+        manifest_fallback_url=manifest_fallback_url,
+        signature_fallback_url=signature_fallback_url,
         download_sha256=download_sha256,
         download_size=download_size,
         manifest_size=manifest_size,
@@ -398,13 +420,13 @@ def _download_to_temporary(
     temporary_path = Path(temporary_name)
     try:
         os.fchmod(descriptor, 0o600)
-        request = Request(
-            trusted_url,
-            headers={
-                "Accept": "application/octet-stream",
-                "User-Agent": f"PowerSifu/{current_version}",
-            },
-        )
+        headers = {
+            "Accept": "application/octet-stream",
+            "User-Agent": f"PowerSifu/{current_version}",
+        }
+        if urlparse(trusted_url).hostname == "api.github.com":
+            headers["X-GitHub-Api-Version"] = "2026-03-10"
+        request = Request(trusted_url, headers=headers)
         with os.fdopen(descriptor, "wb") as stream:
             with opener(request, timeout=30) as response:
                 final_url = getattr(response, "geturl", lambda: trusted_url)()
@@ -441,6 +463,43 @@ def _download_to_temporary(
         raise
 
 
+def _download_with_fallback(
+    url: str,
+    fallback_url: str | None,
+    target_dir: Path,
+    **options: Any,
+) -> Path:
+    """Use GitHub's asset API first and retry its browser route on transport failure."""
+
+    try:
+        return _download_to_temporary(url, target_dir, **options)
+    except (HTTPError, URLError, TimeoutError, OSError) as primary_error:
+        if isinstance(primary_error, HTTPError):
+            primary_error.close()
+        if not fallback_url or fallback_url == url:
+            raise primary_error
+        try:
+            return _download_to_temporary(fallback_url, target_dir, **options)
+        except (HTTPError, URLError, TimeoutError, OSError) as fallback_error:
+            if isinstance(fallback_error, HTTPError):
+                fallback_error.close()
+            raise UpdateInstallError(
+                "Could not download a release asset through either GitHub endpoint: "
+                f"{fallback_error}"
+            ) from fallback_error
+
+
+def _url_matches_asset(url: str, expected_name: str) -> bool:
+    parsed = urlparse(url)
+    if parsed.hostname == "api.github.com":
+        return bool(
+            ASSET_API_PATH.fullmatch(parsed.path)
+            and not parsed.query
+            and not parsed.fragment
+        )
+    return Path(parsed.path).name == expected_name
+
+
 def download_update(
     info: UpdateInfo,
     destination_dir: Path | None = None,
@@ -457,12 +516,14 @@ def download_update(
     manifest_name = f"{package_name}.manifest.json"
     signature_name = f"{manifest_name}.sig"
     urls = {
-        package_name: info.download_url,
-        manifest_name: info.manifest_url,
-        signature_name: info.signature_url,
+        package_name: (info.download_url, info.download_fallback_url),
+        manifest_name: (info.manifest_url, info.manifest_fallback_url),
+        signature_name: (info.signature_url, info.signature_fallback_url),
     }
-    for expected_name, url in urls.items():
-        if url is None or Path(urlparse(url).path).name != expected_name:
+    for expected_name, (url, fallback_url) in urls.items():
+        if url is None or not _url_matches_asset(url, expected_name):
+            raise UpdateInstallError("The release contains an unexpectedly named update asset")
+        if fallback_url is not None and not _url_matches_asset(fallback_url, expected_name):
             raise UpdateInstallError("The release contains an unexpectedly named update asset")
 
     target_dir = destination_dir or _default_cache_dir()
@@ -470,8 +531,9 @@ def download_update(
     try:
         target_dir.mkdir(parents=True, exist_ok=True)
         target_dir.chmod(0o700)
-        manifest_path = _download_to_temporary(
+        manifest_path = _download_with_fallback(
             info.manifest_url,
+            info.manifest_fallback_url,
             target_dir,
             prefix="manifest-",
             suffix=".json",
@@ -481,8 +543,9 @@ def download_update(
             opener=opener,
         )
         temporary_paths.append(manifest_path)
-        signature_path = _download_to_temporary(
+        signature_path = _download_with_fallback(
             info.signature_url,
+            info.signature_fallback_url,
             target_dir,
             prefix="signature-",
             suffix=".sig",
@@ -505,8 +568,9 @@ def download_update(
         if info.download_sha256 is not None and info.download_sha256 != manifest.sha256:
             raise UpdateInstallError("GitHub and the signed manifest disagree about package SHA-256")
 
-        package_path = _download_to_temporary(
+        package_path = _download_with_fallback(
             info.download_url,
+            info.download_fallback_url,
             target_dir,
             prefix="package-",
             suffix=".deb",
