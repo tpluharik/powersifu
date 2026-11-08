@@ -1,0 +1,7 @@
+#!/usr/bin/python3
+"""Root entry point for authenticated PowerSifu package installation."""
+
+from powersifu.update_helper import main
+
+
+raise SystemExit(main())

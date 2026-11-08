@@ -559,7 +559,7 @@ class SettingsWindow(Gtk.ApplicationWindow):
         self.update_check_status.set_text(
             f"PowerSifu {info.latest_version} is available."
         )
-        if info.download_url and info.download_sha256 and info.download_size:
+        if info.installable:
             self._available_update = info
             self.update_action_button.set_label(f"Install {info.latest_version}")
         else:
@@ -591,18 +591,18 @@ class SettingsWindow(Gtk.ApplicationWindow):
             self._message("Could not open the update", str(error), Gtk.MessageType.ERROR)
 
     def _install_update_worker(self, info: UpdateInfo) -> None:
-        package_path = None
+        downloaded_update = None
         try:
-            package_path = download_update(info)
+            downloaded_update = download_update(info)
             GLib.idle_add(self._show_installing_update, info.latest_version)
-            install_update(package_path)
+            install_update(downloaded_update)
         except UpdateInstallError as error:
             GLib.idle_add(self._finish_update_install, info.latest_version, str(error))
         else:
             GLib.idle_add(self._finish_update_install, info.latest_version, None)
         finally:
-            if package_path is not None:
-                package_path.unlink(missing_ok=True)
+            if downloaded_update is not None:
+                downloaded_update.cleanup()
 
     def _show_installing_update(self, version: str) -> bool:
         self.update_check_status.set_text(

@@ -18,6 +18,8 @@ mkdir -p "$output_dir"
 install -Dm644 "$project_root/packaging/control" "$stage/DEBIAN/control"
 install -Dm755 "$project_root/bin/powersifu" "$stage/usr/bin/powersifu"
 install -Dm755 "$project_root/bin/powersifu-app" "$stage/usr/libexec/powersifu/powersifu-app"
+install -Dm755 "$project_root/bin/powersifu-update-helper" \
+    "$stage/usr/libexec/powersifu/powersifu-update-helper"
 
 find "$project_root/src/powersifu" -maxdepth 1 -type f -name '*.py' -print | while IFS= read -r source; do
     install -Dm644 "$source" "$stage/usr/lib/python3/dist-packages/powersifu/$(basename "$source")"
@@ -29,6 +31,10 @@ install -Dm644 "$project_root/data/io.github.tpluharik.PowerSifu-autostart.deskt
     "$stage/etc/xdg/autostart/io.github.tpluharik.PowerSifu.desktop"
 install -Dm644 "$project_root/data/io.github.tpluharik.PowerSifu.metainfo.xml" \
     "$stage/usr/share/metainfo/io.github.tpluharik.PowerSifu.metainfo.xml"
+install -Dm644 "$project_root/data/io.github.tpluharik.PowerSifu.policy" \
+    "$stage/usr/share/polkit-1/actions/io.github.tpluharik.PowerSifu.policy"
+install -Dm644 "$project_root/data/update-signing-key.pem" \
+    "$stage/usr/share/powersifu/update-signing-key.pem"
 
 for size in 16 24 32 48 64 128 256 512; do
     install -Dm644 "$project_root/assets/icons/hicolor/${size}x${size}/apps/powersifu.png" \

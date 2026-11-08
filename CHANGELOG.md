@@ -2,6 +2,14 @@
 
 All notable changes to PowerSifu are documented here.
 
+## 0.3.6 — 2026-11-08
+
+- Closed the update time-of-check/time-of-use window with a fixed root-owned staging helper.
+- Added Ed25519-signed release manifests, repeated privileged verification, and downgrade refusal.
+- Protected critical session processes across GNOME, KDE, Unity, XFCE, LXQt, MATE, and Cinnamon.
+- Added PID-descriptor signalling and last-moment process identity checks.
+- Pinned every GitHub Action to a reviewed commit and added automated pin enforcement.
+
 ## 0.3.5 — 2026-09-24
 
 - Replaced five-second polling with UPower and power-profile property-change events.

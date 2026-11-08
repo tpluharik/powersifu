@@ -9,6 +9,8 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
+from .processes import validate_process_name
+
 
 APP_ID = "io.github.tpluharik.PowerSifu"
 PROFILE_NAMES = ("power-saver", "balanced", "performance")
@@ -77,7 +79,7 @@ def sanitize_config(value: Any) -> dict[str, Any]:
             continue
         name = str(rule.get("process", "")).strip()
         profile = str(rule.get("profile", ""))
-        if name and profile in PROFILE_NAMES:
+        if validate_process_name(name) and profile in PROFILE_NAMES:
             rules.append(
                 {
                     "enabled": bool(rule.get("enabled", True)),

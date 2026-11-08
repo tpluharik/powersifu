@@ -1,3 +1,11 @@
+powersifu (0.3.6) unstable; urgency=high
+
+  * Secure in-app updates with signed manifests and root-owned staging.
+  * Protect critical processes for every advertised desktop environment.
+  * Pin CI actions and enforce immutable workflow dependencies.
+
+ -- Tomas Pluharik <noreply@github.com>  Sun, 08 Nov 2026 00:00:00 +0100
+
 powersifu (0.3.5) unstable; urgency=medium
 
   * Replace frequent polling with UPower and power-profile D-Bus events.

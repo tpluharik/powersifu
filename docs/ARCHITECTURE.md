@@ -10,8 +10,10 @@ no privileged daemon and no network service.
   property-change events, and provides a sysfs fallback for power-source detection.
 - `brightness.py` validates percentages, drives GNOME Shell's global slider through the desktop
   accessibility bus, and falls back to Mutter or `brightnessctl` when needed.
-- `updates.py` performs bounded GitHub release checks and downloads, validates Debian package
-  identity, and requests authenticated installation through the system package manager.
+- `updates.py` performs bounded GitHub release checks and downloads, authenticates a signed release
+  manifest, validates Debian package identity, and requests the fixed privileged helper.
+- `update_helper.py` securely stages untrusted update inputs, repeats every authenticity and
+  identity check as root, rejects downgrades, and invokes the fixed package-manager command.
 - `scheduler.py` matches enabled recurring weekly schedules once per minute.
 - `processes.py` performs exact-name, same-user process discovery and graceful termination.
 - `engine.py` coordinates power-source changes, external profile changes, schedules, and rules.
@@ -43,6 +45,8 @@ PowerSifu runs entirely as the logged-in user. The existing power-profiles syste
 profile changes. Brightness is delegated to the desktop session or `brightnessctl`. Process rules
 cannot contain arguments, paths, regular expressions, or shell syntax, which keeps their effect
 narrow and reviewable. Update checks and installs are user-initiated, size limited, and accept only
-HTTPS URLs on GitHub-owned hosts. Packages must match GitHub's size and SHA-256 metadata plus the
-expected Debian name, version, and architecture before a fixed `pkexec apt-get` invocation requests
-system authentication.
+HTTPS URLs on GitHub-owned hosts. An Ed25519 signature from the pinned publisher key binds the
+package filename, version, architecture, size, and SHA-256 digest. After authorization, the
+root-owned helper copies all inputs without following links into protected staging and independently
+repeats signature, digest, Debian identity, and anti-downgrade checks before invoking `apt-get` on
+the protected package copy.

@@ -22,6 +22,16 @@ class ConfigTests(unittest.TestCase):
         )
         self.assertEqual(config["automation"]["ac_profile"], "balanced")
         self.assertEqual(config["automation"]["battery_profile"], "power-saver")
+
+    def test_protected_desktop_process_rule_is_removed_on_load(self):
+        config = sanitize_config(
+            {
+                "application_rules": [
+                    {"enabled": True, "process": "plasmashell", "profile": "power-saver"}
+                ]
+            }
+        )
+        self.assertEqual(config["application_rules"], [])
         self.assertNotIn("poll_seconds", config["automation"])
 
     def test_brightness_values_are_migrated_and_clamped(self):

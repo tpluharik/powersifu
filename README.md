@@ -27,17 +27,17 @@ PowerSifu targets Ubuntu and Debian desktops using
   Performance becomes active.
 - **Startup integration:** runs quietly at login and can be disabled from the GUI.
 - **Desktop notifications:** reports profile changes, stopped applications, and actionable errors.
-- **In-app updater:** download, verify, and install official releases with system authentication.
+- **In-app updater:** authenticate signed releases and install from protected root-owned staging.
 - **Safe by construction:** no arbitrary commands, no root process termination, and protected
   desktop processes.
 
 ## Install
 
-Download [PowerSifu 0.3.5 for Ubuntu/Debian](https://github.com/tpluharik/powersifu/releases/download/v0.3.5/powersifu_0.3.5_all.deb),
+Download [PowerSifu 0.3.6 for Ubuntu/Debian](https://github.com/tpluharik/powersifu/releases/download/v0.3.6/powersifu_0.3.6_all.deb),
 then install it with:
 
 ```bash
-sudo apt install ./powersifu_0.3.5_all.deb
+sudo apt install ./powersifu_0.3.6_all.deb
 ```
 
 Launch **PowerSifu** from the application menu. The package also starts it in the tray on future
@@ -60,8 +60,9 @@ Your user configuration remains in `~/.config/powersifu/` unless you remove it s
 
 Open **Settings → About → Check for updates**. When a newer official package is available,
 choose **Install update** and approve the operating-system authentication prompt. PowerSifu
-verifies the download before installation. Quit and reopen PowerSifu afterward so the running
-process loads the new version.
+verifies the release signature and package again inside a protected root helper before installation.
+Quit and reopen PowerSifu afterward so the running process loads the new version. Unsigned releases
+can be opened in the browser but cannot be installed from the app.
 
 ## Configure PowerSifu
 
@@ -128,11 +129,14 @@ PowerSifu listens for power-source and profile-change events through persistent 
 connections. A 60-second safety reconciliation covers missed or unavailable signals. Schedule
 checks run only on wall-clock minute boundaries and sleep completely when no schedule is enabled.
 PowerSifu applies optional display changes through the desktop session or `brightnessctl`; it does
-not install a privileged daemon or custom authorization policy. The About-page update checker contacts only
-the official GitHub Releases API after **Check for updates** is clicked. **Install update**
-downloads the official package, verifies its Debian identity and version, and requests
-authentication through the operating system before installation. The download's size and SHA-256
-digest must also match GitHub's release metadata.
+not use a continuously running privileged daemon. The package installs a narrowly scoped update
+helper and authorization policy that can only stage, authenticate, inspect, and install a signed
+PowerSifu package. The About-page update checker contacts only the official GitHub Releases API after
+**Check for updates** is clicked. **Install update**
+downloads the package, signed manifest, and signature. Both the desktop process and the root-owned
+helper verify the pinned Ed25519 publisher key, SHA-256 digest, Debian identity, version, and
+architecture. The helper copies inputs without following links into root-owned staging, rejects
+downgrades, and only then requests installation through the fixed package-manager command.
 
 ## Build from source
 
@@ -140,7 +144,7 @@ Install development dependencies on Ubuntu/Debian:
 
 ```bash
 sudo apt install python3-gi gir1.2-glib-2.0 gir1.2-gtk-3.0 gir1.2-atspi-2.0 \
-  gir1.2-ayatanaappindicator3-0.1 power-profiles-daemon upower brightnessctl pkexec apt dpkg-dev
+  gir1.2-ayatanaappindicator3-0.1 power-profiles-daemon upower brightnessctl pkexec apt dpkg-dev openssl
 ```
 
 Run tests and build the package:
@@ -174,7 +178,8 @@ installed, then quit and reopen the tray application. The Debian package install
 AT-SPI binding automatically.
 
 **An update fails:** confirm that GitHub is reachable and approve the system authentication
-prompt. PowerSifu verifies the package before requesting installation and reports package-manager
+prompt. PowerSifu requires a valid signed manifest, re-verifies the staged package after
+authentication, and reports package-manager
 errors in the About tab.
 
 **An application rule does nothing:** process matching is exact. Confirm the name with the `ps`
